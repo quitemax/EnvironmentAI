@@ -1,0 +1,43 @@
+# Project History
+
+A changelog of notable decisions, changes, and milestones for EnvironmentAI. Unlike a git log, this is meant to capture *why*, not just *what*.
+
+## 2026-09-24 — Project scaffolded
+
+- Initialized the repository as a Fabric mod targeting Minecraft 26.3.
+- Based the boilerplate on the current official [fabric-example-mod](https://github.com/FabricMC/fabric-example-mod) template (branch `26.3`), rather than an older cached template, since Minecraft 26.1 introduced a breaking toolchain change: the game is now shipped unobfuscated with official Mojang mappings, Yarn mappings are no longer supported, and the Loom plugin/build setup changed accordingly (no more `remapJar`, standard `implementation`/`compileOnly` dependency configs, Java 25 minimum).
+- Mod id: `environmentai`, root package: `com.quitemax.environmentai`.
+- Versions pinned: Fabric Loader 0.19.5, Fabric API 0.161.0+26.3, Loom 1.17-SNAPSHOT, Gradle 9.5.1, Java 25.
+- Added `README.md`, `ROADMAP.md`, and this file to track project docs going forward.
+
+## 2026-09-24 — Dual-process ("System 1 / System 2") hostile mob AI
+
+- Replaced vanilla hostile-mob AI with a two-tier, LLM-driven decision system: System 2 (slow,
+  event-triggered) maintains a per-mob narrative state; System 1 (fast, frequent) reads that
+  cached state plus immediate situational facts and picks one discrete action from a fixed
+  vocabulary (`ATTACK`, `FLEE`, `APPROACH`, `GUARD`, `WANDER`, `IDLE`). Vanilla's own
+  goal-selector/pathfinding machinery executes whichever action is active, via six small `Goal`
+  implementations gated on the mob's current action — chosen specifically so we don't have to
+  hand-roll pathfinding/combat.
+- Scope is hostile mobs only (`Monster`/`Enemy`) for this pass, not passive mobs or villagers.
+- Both tiers are independently configurable to a local model (Ollama) or cloud model (Anthropic
+  API) via `config/environmentai.json`. Default out of the box: System 1 → local Ollama (fast/cheap
+  for the frequent tier), System 2 → Anthropic cloud (stronger reasoning for the narrative tier).
+- System 2 has no fixed timer — it only refreshes on triggers (damage taken, target acquired/lost,
+  or a self-flagged escalation from System 1 for near-death/stuck-repeating-the-same-action), with
+  a debounce (wait for a quiet period) and cooldown (minimum spacing between actual dispatches) per
+  mob to avoid spamming cloud calls.
+- Narrative/action state is stored via Fabric API's `attachment.v1` module (persistent, codec-backed),
+  not a hand-rolled map — this gives automatic NBT save/load across chunk unload/restart for free.
+- This mod's toolchain had just changed underneath it (Minecraft 26.1 dropped Yarn mappings), so a
+  research pass verified real current Mojang-mapped API names against live javadoc before
+  implementation, then every stage was validated by an actual `JDK 25` compile (installed locally
+  via `winget install Microsoft.OpenJDK.25` specifically to enable this) rather than trusting
+  remembered signatures — this caught several wrong assumptions along the way (e.g. `Mob.goalSelector`
+  is `protected`, not `public`, requiring a `@Shadow` field in the mixin; `Entity#getServer()`
+  doesn't exist — main-thread marshaling goes through `ServerLevel#getServer()` instead). The full
+  mod was also smoke-tested with a real headless `./gradlew runServer` boot, confirming all three
+  mixins (`registerGoals` injection, `setTarget` injection) apply cleanly against the actual 26.3
+  classes with no Mixin errors.
+- Removed the leftover `ExampleMixin`/`ExampleClientMixin` template boilerplate and the now-empty
+  client mixin config, since this feature is entirely server/common-side.

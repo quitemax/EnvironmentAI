@@ -1,0 +1,33 @@
+{
+	"schemaVersion": 1,
+	"id": "environmentai",
+	"version": "${version}",
+	"name": "EnvironmentAI",
+	"description": "An AI-driven environment mod for Minecraft.",
+	"authors": [
+		"quitemax"
+	],
+	"contact": {
+		"sources": "https://github.com/quitemax/EnvironmentAI"
+	},
+	"license": "MIT",
+	"icon": "assets/environmentai/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.quitemax.environmentai.EnvironmentAI"
+		],
+		"client": [
+			"com.quitemax.environmentai.client.EnvironmentAIClient"
+		]
+	},
+	"mixins": [
+		"environmentai.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
