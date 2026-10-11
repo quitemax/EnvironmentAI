@@ -47,6 +47,15 @@ public class System1Scheduler {
 	 */
 	private static final int STUCK_ACTION_TICK_THRESHOLD = 100;
 
+	private static final int DEFAULT_MAX_IN_FLIGHT = 4;
+
+	/**
+	 * Once a mob starts fleeing it keeps fleeing for at least this long. The model decides each
+	 * tick independently and was observed alternating FLEE/ATTACK every ~300 ms at critical
+	 * health, which in-game is a mob stepping away and back again.
+	 */
+	private static final long FLEE_MIN_HOLD_MS = 2_500;
+
 	/** With no target there is nothing to react to, so let vanilla behaviour run. */
 	private static final MobAction NO_TARGET_ACTION = MobAction.IDLE;
 
@@ -55,7 +64,7 @@ public class System1Scheduler {
 	/** Null when training-data logging is disabled. */
 	private final TrainingDataLogger trainingLogger;
 	/** Outstanding model calls across all mobs. Decremented off the server thread, hence atomic. */
-	private final AtomicInteger inFlight = new AtomicInteger();
+	private final AtomicInteger inFlight = AiLoad.SYSTEM1_IN_FLIGHT;
 	private long tickCounter = 0;
 
 	public System1Scheduler(ModelProvider provider, ModelTierConfig config, TrainingDataLogger trainingLogger) {
@@ -90,7 +99,7 @@ public class System1Scheduler {
 			(Mob mob) -> mob.getAttachedOrCreate(ModAttachments.MOB_AI_STATE).lastSystem1DispatchTime()
 		));
 
-		int maxInFlight = Math.max(1, config.maxInFlight);
+		int maxInFlight = config.maxInFlight > 0 ? config.maxInFlight : DEFAULT_MAX_IN_FLIGHT;
 		long now = System.currentTimeMillis();
 		for (Mob mob : candidates) {
 			if (inFlight.get() >= maxInFlight) {
@@ -158,6 +167,8 @@ public class System1Scheduler {
 			trainingRow = trainingLogger.snapshot(mob, state, request, now);
 			// How many calls were outstanding (including this one): the direct measure of queueing.
 			trainingRow.addProperty("in_flight_at_dispatch", inFlightAtDispatch);
+			// What System 2 had outstanding at the same moment: both tiers share one GPU.
+			trainingRow.addProperty("system2_in_flight", AiLoad.SYSTEM2_IN_FLIGHT.get());
 		}
 		JsonObject row = trainingRow;
 
@@ -204,6 +215,13 @@ public class System1Scheduler {
 
 		MobAction parsed = ActionParser.tryParse(response, EnvironmentAI.LOGGER).orElse(null);
 		MobAction newAction = parsed != null ? parsed : state.currentAction();
+		if (holdFlee(state, newAction, appliedAt)) {
+			newAction = MobAction.FLEE;
+			if (trainingRow != null) {
+				// The raw response still records what the model said; this records why it wasn't applied.
+				trainingRow.addProperty("override", "flee_hold");
+			}
+		}
 		state.updateAction(newAction);
 
 		if (trainingLogger != null && trainingRow != null) {
@@ -211,6 +229,13 @@ public class System1Scheduler {
 		}
 
 		checkForSignificantEvent(mob, state);
+	}
+
+	/** True if the mob is mid-flee and the model's new answer should be ignored for now. */
+	private static boolean holdFlee(MobAiState state, MobAction proposed, long nowMs) {
+		return state.currentAction() == MobAction.FLEE
+			&& proposed != MobAction.FLEE
+			&& nowMs - state.actionChangedAtMs() < FLEE_MIN_HOLD_MS;
 	}
 
 	/**

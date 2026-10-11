@@ -119,6 +119,14 @@ public final class TrainingDataLogger {
 		enqueue(row);
 	}
 
+	/**
+	 * Enqueues a row the caller has fully built, adding only provider and model. Used for System 2
+	 * call logs, whose shape differs from System 1 decision rows.
+	 */
+	public void logRow(JsonObject row) {
+		enqueue(row);
+	}
+
 	/** Enqueues a row for an action chosen by a scheduler rule, with no model call. */
 	public void recordRule(JsonObject row, MobAction applied, String reason) {
 		row.addProperty("source", "rule");

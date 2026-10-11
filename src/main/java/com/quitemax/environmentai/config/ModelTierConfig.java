@@ -22,13 +22,15 @@ public class ModelTierConfig {
 	public int tickInterval = 2;
 	public long minSpacingLocalMs = 250;
 	public long minSpacingCloudMs = 1_000;
-	/** Mobs farther than this from every player are not given decisions (0 or less = no limit). */
+	/** Mobs farther than this from every player are not given decisions or narrative refreshes (0 or less = no limit). */
 	public double activeRadiusBlocks = 48.0;
 	/**
-	 * Global cap on simultaneously outstanding System 1 calls. Without it, a crowd of mobs all
-	 * dispatching at once queues behind the model and every answer arrives stale.
+	 * Global cap on simultaneously outstanding calls for this tier. Without it, a crowd of mobs all
+	 * dispatching at once queues behind the model and every answer arrives stale. 0 (the default,
+	 * also what an existing config file without this field gets) means the tier's own default:
+	 * 4 for System 1, and 1 for System 2 (matching a single-slot Ollama instance).
 	 */
-	public int maxInFlight = 4;
+	public int maxInFlight = 0;
 
 	// System 2 cadence settings.
 	/** Minimum time between two triggers being coalesced into one refresh. */

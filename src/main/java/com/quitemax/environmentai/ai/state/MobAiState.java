@@ -21,6 +21,7 @@ public final class MobAiState {
 	private NarrativeState narrative;
 	private MobAction currentAction;
 
+	private long actionChangedAtMs = 0L;
 	private int consecutiveSameActionTicks = 0;
 	private boolean stuckEscalated = false;
 	private boolean nearDeathEscalated = false;
@@ -60,8 +61,14 @@ public final class MobAiState {
 		} else {
 			consecutiveSameActionTicks = 0;
 			stuckEscalated = false;
+			actionChangedAtMs = System.currentTimeMillis();
 		}
 		this.currentAction = action;
+	}
+
+	/** Wall-clock time the current action was last switched to (0 if never changed this session). */
+	public long actionChangedAtMs() {
+		return actionChangedAtMs;
 	}
 
 	public int consecutiveSameActionTicks() {

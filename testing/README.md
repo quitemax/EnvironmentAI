@@ -30,6 +30,14 @@ Each row has a `source`: `model` (the model answered; the only rows usable as tr
 currently only `no_target`, logged on change). Timing is split into `response_ms` (dispatch until
 the answer arrived) and `apply_delay_ms` (answer arrived until the server thread applied it), and
 `in_flight_at_dispatch` shows how many calls were outstanding, the direct measure of queueing.
+An `override` field (currently `flee_hold`) means the model's answer was not applied; `raw_response`
+still records what it said.
+
+System 2 calls go to a sibling file with the same timestamp, `system2-<timestamp>.jsonl`: one row
+per narrative refresh with the `trigger`, `trigger_wait_ms` (debounce + cooldown wait), the
+previous and new narrative, `response_ms` / `apply_delay_ms`, and `system1_in_flight`. System 1 rows
+carry the mirror field `system2_in_flight`, so a slow answer can be matched against what else was
+using the GPU at that moment.
 
 ```powershell
 # live view, and a per-action tally
