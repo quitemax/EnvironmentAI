@@ -40,4 +40,15 @@ public final class System1PromptBuilder {
 
 		return new PromptRequest(SYSTEM_PROMPT, user.toString(), config.temperature, config.maxTokens);
 	}
+
+	/** A word for the health fraction, so a small model doesn't have to do the division itself. */
+	private static String healthLabel(float fraction) {
+		if (fraction < 0.25f) {
+			return "CRITICAL";
+		}
+		if (fraction < 0.6f) {
+			return "wounded";
+		}
+		return "healthy";
+	}
 }

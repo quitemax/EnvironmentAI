@@ -3,6 +3,7 @@ package com.quitemax.environmentai.ai.prompt;
 import com.quitemax.environmentai.ai.provider.PromptRequest;
 import com.quitemax.environmentai.ai.state.MobAiState;
 import com.quitemax.environmentai.config.ModelTierConfig;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 
@@ -38,5 +39,15 @@ public final class System2PromptBuilder {
 		user.append("Update the narrative state given this trigger.");
 
 		return new PromptRequest(SYSTEM_PROMPT, user.toString(), config.temperature, config.maxTokens);
+	}
+
+	/**
+	 * Names the target by type only ("a player", "an iron golem"). Player usernames are
+	 * deliberately left out: this prompt may be sent to a third-party cloud provider.
+	 */
+	private static String describe(LivingEntity target) {
+		String name = EntityType.getKey(target.getType()).getPath().replace('_', ' ');
+		boolean vowel = "aeiou".indexOf(name.charAt(0)) >= 0;
+		return (vowel ? "an " : "a ") + name;
 	}
 }
