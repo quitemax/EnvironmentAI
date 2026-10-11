@@ -1,5 +1,6 @@
 package com.quitemax.environmentai.ai.scheduling;
 
+import com.quitemax.environmentai.goal.SystemGoals;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
@@ -28,6 +29,7 @@ public final class MobTracker {
 	public static void register() {
 		ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
 			if (entity instanceof PathfinderMob mob && mob instanceof Enemy) {
+				SystemGoals.install(mob);
 				track(mob, level);
 			}
 		});

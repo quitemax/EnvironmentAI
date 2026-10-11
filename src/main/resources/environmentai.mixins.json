@@ -1,15 +1,14 @@
 {
-	"required": true,
-	"package": "com.quitemax.environmentai.mixin",
-	"compatibilityLevel": "JAVA_25",
-	"mixins": [
-		"MobGoalInjectionMixin",
-		"MobTargetEventMixin"
-	],
-	"injectors": {
-		"defaultRequire": 1
-	},
-	"overwrites": {
-		"requireAnnotations": true
-	}
+  "required": true,
+  "package": "com.quitemax.environmentai.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "MobTargetEventMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
 }
