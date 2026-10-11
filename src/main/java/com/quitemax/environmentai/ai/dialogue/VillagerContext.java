@@ -3,6 +3,7 @@ package com.quitemax.environmentai.ai.dialogue;
 import com.quitemax.environmentai.ai.perception.TargetAssessment;
 import com.quitemax.environmentai.ai.state.ModAttachments;
 import com.quitemax.environmentai.ai.state.VillagerState;
+import com.quitemax.environmentai.network.ConversationPayloads;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
@@ -122,6 +123,28 @@ public final class VillagerContext {
 			return "earlier today";
 		}
 		return "days ago";
+	}
+
+	/** What the conversation screen shows about this villager, as ready-to-display text. */
+	public static ConversationPayloads.Status status(Villager villager, ServerPlayer player) {
+		VillagerState state = villager.getAttachedOrCreate(ModAttachments.VILLAGER_STATE);
+		int level = villager.getVillagerData().level();
+		String profession = professionName(villager);
+		boolean hasLevel = !profession.equals("villager") && !profession.equals("nitwit");
+		String title = displayName(villager) + (hasLevel ? " (level " + level + ")" : "");
+
+		int reputation = villager.getGossips().getReputation(player.getUUID(), type -> true);
+		String standing = reputation >= 50 ? "adores you"
+			: reputation >= 10 ? "likes you"
+			: reputation > -10 ? "has no strong feelings about you yet"
+			: reputation > -50 ? "distrusts you"
+			: "despises you";
+
+		return new ConversationPayloads.Status(
+			title, state.mood(), state.moodReason(), activity(villager),
+			String.format(Locale.ROOT, "%.0f / %.0f", villager.getHealth(), villager.getMaxHealth()),
+			standing, VillagerPersona.of(villager)
+		);
 	}
 
 	/** One line for {@code /environmentai inspect}; {@code viewer} may be null (console). */

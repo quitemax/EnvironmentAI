@@ -42,14 +42,17 @@ public class EnvironmentAIClient implements ClientModInitializer {
 		ClientPlayNetworking.registerGlobalReceiver(ConversationPayloads.Line.TYPE, (payload, context) ->
 			ConversationClient.onVillagerLine(payload.speaker(), payload.text()));
 
+		ClientPlayNetworking.registerGlobalReceiver(ConversationPayloads.Status.TYPE, (payload, context) ->
+			ConversationClient.setStatus(payload));
+
 		ClientPlayNetworking.registerGlobalReceiver(ConversationPayloads.Ended.TYPE, (payload, context) -> {
 			Minecraft client = context.client();
-			ConversationClient.end();
 			if (client.gui.screen() instanceof ConversationScreen screen) {
-				// Tell the screen the server already knows, so closing it does not send Leave back.
-				screen.closeFromServer();
-				client.gui.setScreen(null);
+				// The server already knows; do not echo a Leave. The screen closes itself when the
+				// camera has finished easing back, so the letterbox slides away with the shot.
+				screen.serverEnded();
 			}
+			ConversationClient.end();
 			if (!payload.reason().isEmpty() && client.player != null) {
 				client.player.sendSystemMessage(Component.literal(payload.reason()));
 			}

@@ -87,6 +87,33 @@ public final class ConversationPayloads {
 		}
 	}
 
+	/**
+	 * What to show about the villager while talking: who it is, its mood and why, what it is doing.
+	 * Sent when the conversation starts and again whenever any of it changes. Every field is
+	 * display text, so the client has no game logic to keep in step.
+	 */
+	public record Status(
+		String title, String mood, String moodReason, String activity,
+		String health, String standing, String temperament
+	) implements CustomPacketPayload {
+		public static final Type<Status> TYPE = typeOf("conversation_status");
+		public static final StreamCodec<ByteBuf, Status> CODEC = StreamCodec.composite(
+			ByteBufCodecs.STRING_UTF8, Status::title,
+			ByteBufCodecs.STRING_UTF8, Status::mood,
+			ByteBufCodecs.STRING_UTF8, Status::moodReason,
+			ByteBufCodecs.STRING_UTF8, Status::activity,
+			ByteBufCodecs.STRING_UTF8, Status::health,
+			ByteBufCodecs.STRING_UTF8, Status::standing,
+			ByteBufCodecs.STRING_UTF8, Status::temperament,
+			Status::new
+		);
+
+		@Override
+		public Type<? extends CustomPacketPayload> type() {
+			return TYPE;
+		}
+	}
+
 	/** The conversation is over (or was refused); {@code reason} is shown to the player. */
 	public record Ended(String reason) implements CustomPacketPayload {
 		public static final Type<Ended> TYPE = typeOf("conversation_ended");
@@ -106,6 +133,7 @@ public final class ConversationPayloads {
 		PayloadTypeRegistry.serverboundPlay().register(Leave.TYPE, Leave.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(Started.TYPE, Started.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(Line.TYPE, Line.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(Status.TYPE, Status.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(Ended.TYPE, Ended.CODEC);
 	}
 }

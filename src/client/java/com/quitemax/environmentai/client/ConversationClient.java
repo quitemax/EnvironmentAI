@@ -1,5 +1,7 @@
 package com.quitemax.environmentai.client;
 
+import com.quitemax.environmentai.network.ConversationPayloads;
+
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
@@ -30,6 +32,7 @@ public final class ConversationClient {
 	private static boolean pending;
 	private static long pendingSinceNanos;
 	private static final Deque<String> transcript = new ArrayDeque<>();
+	private static ConversationPayloads.Status status;
 
 	private ConversationClient() {
 	}
@@ -43,6 +46,7 @@ public final class ConversationClient {
 		lastLine = "";
 		pending = false;
 		transcript.clear();
+		status = null;
 		phase = Phase.IN;
 		phaseStartNanos = System.nanoTime();
 	}
@@ -140,6 +144,15 @@ public final class ConversationClient {
 		while (transcript.size() > TRANSCRIPT_LINES) {
 			transcript.removeFirst();
 		}
+	}
+
+	/** The latest status the server sent for the villager, or null before the first arrives. */
+	public static ConversationPayloads.Status status() {
+		return status;
+	}
+
+	public static void setStatus(ConversationPayloads.Status newStatus) {
+		status = newStatus;
 	}
 
 	public static boolean isWaiting() {

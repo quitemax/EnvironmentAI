@@ -48,6 +48,7 @@ public final class ConversationManager {
 	private static final double START_RANGE = 6.0;
 	private static final double THREAT_RADIUS = 8.0;
 	private static final int THREAT_CHECK_INTERVAL = 5;
+	private static final int STATUS_INTERVAL = 10;
 	private static final double FLEE_DISTANCE = 12.0;
 
 	private static ConversationManager instance;
@@ -58,6 +59,8 @@ public final class ConversationManager {
 	private final DialogueService dialogue;
 	private final Map<UUID, Conversation> byPlayer = new HashMap<>();
 	private final Map<UUID, UUID> playerByVillager = new HashMap<>();
+	/** Last status sent per player, so an unchanged one is not re-sent every second. */
+	private final Map<UUID, ConversationPayloads.Status> lastStatus = new HashMap<>();
 
 	public ConversationManager(DialogueService dialogue) {
 		this.dialogue = dialogue;
@@ -65,6 +68,11 @@ public final class ConversationManager {
 
 	public static ConversationManager instance() {
 		return instance;
+	}
+
+	/** Whether this player is in a conversation: nobody should talk over one. */
+	public static boolean isInConversation(UUID player) {
+		return instance != null && instance.byPlayer.containsKey(player);
 	}
 
 	/** Whether this villager is mid-conversation. Read from the Brain-freeze mixin every tick. */
@@ -117,6 +125,14 @@ public final class ConversationManager {
 		ServerPlayNetworking.send(player, new ConversationPayloads.Started(
 			villager.getId(), VillagerContext.displayName(villager)
 		));
+		sendStatus(player, villager);
+	}
+
+	private void sendStatus(ServerPlayer player, Villager villager) {
+		ConversationPayloads.Status status = VillagerContext.status(villager, player);
+		if (!status.equals(lastStatus.put(player.getUUID(), status))) {
+			ServerPlayNetworking.send(player, status);
+		}
 	}
 
 	private static void refuse(ServerPlayer player, String reason) {
@@ -163,6 +179,7 @@ public final class ConversationManager {
 			return;
 		}
 		playerByVillager.remove(conversation.villager().getUUID());
+		lastStatus.remove(player.getUUID());
 		if (notify) {
 			ServerPlayNetworking.send(player, new ConversationPayloads.Ended(reason));
 		}
@@ -197,12 +214,16 @@ public final class ConversationManager {
 			if (reason != null) {
 				iterator.remove();
 				playerByVillager.remove(villager.getUUID());
+				lastStatus.remove(player.getUUID());
 				if (!player.isRemoved()) {
 					ServerPlayNetworking.send(player, new ConversationPayloads.Ended(reason));
 				}
 				continue;
 			}
 			hold(villager, player);
+			if (server.getTickCount() % STATUS_INTERVAL == 0) {
+				sendStatus(player, villager);
+			}
 		}
 	}
 

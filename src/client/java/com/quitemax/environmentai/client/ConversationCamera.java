@@ -15,17 +15,31 @@ import net.minecraft.world.phys.Vec3;
  * looking at the villager's head. Pure geometry; {@code CameraMixin} applies the result.
  */
 public final class ConversationCamera {
-	/** How far behind the player's eyes, and to the side, the camera sits. */
-	private static final double BEHIND = 1.7;
-	private static final double ASIDE = 0.9;
-	private static final double ABOVE = 0.25;
+	/**
+	 * The camera sits just behind and well to the right of the player, slightly above, so the
+	 * player's own head is out of the way and the villager's face is clear. The aim point is nudged
+	 * toward the player so the villager sits in the right third of the frame with the player
+	 * balancing it on the left.
+	 */
+	private static final double BEHIND = 0.35;
+	private static final double ASIDE = 1.35;
+	private static final double ABOVE = 0.35;
+	private static final double AIM_TOWARD_PLAYER = 0.40;
 	/** Pulled in from a wall by this much so the near plane does not clip into it. */
 	private static final double WALL_MARGIN = 0.15;
+	/** The view is narrowed to this fraction of the normal field of view at full blend (a zoom). */
+	private static final double ZOOM = 0.70;
 
 	public record Shot(Vec3 position, float yRot, float xRot) {
 	}
 
 	private ConversationCamera() {
+	}
+
+	/** The multiplier for the field of view this frame: 1.0 normally, {@code ZOOM} at full blend. */
+	public static double fovFactor() {
+		double blend = ConversationClient.blend();
+		return 1.0 - (1.0 - ZOOM) * blend;
 	}
 
 	/**
@@ -76,7 +90,7 @@ public final class ConversationCamera {
 				: hit.getLocation().add(inward.normalize().scale(WALL_MARGIN));
 		}
 
-		Vec3 target = villagerHead.add(0.0, -0.1, 0.0);
+		Vec3 target = villagerHead.add(0.0, -0.1, 0.0).subtract(right.scale(AIM_TOWARD_PLAYER));
 		Vec3 look = target.subtract(desired);
 		double horizontal = Math.sqrt(look.x * look.x + look.z * look.z);
 		float shotYaw = (float) (Mth.atan2(-look.x, look.z) * (180.0 / Math.PI));

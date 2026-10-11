@@ -8,6 +8,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * {@code alignWithEntity} is where the camera takes its pose from the entity it follows, once per
@@ -36,6 +37,15 @@ public abstract class CameraMixin {
 
 	@Shadow
 	protected abstract void setRotation(float yRot, float xRot);
+
+	/** The zoom: a narrower field of view during a conversation, eased with the same blend as the shot. */
+	@Inject(method = "calculateFov", at = @At("RETURN"), cancellable = true)
+	private void environmentai$conversationZoom(float partialTick, CallbackInfoReturnable<Float> cir) {
+		double factor = ConversationCamera.fovFactor();
+		if (factor < 1.0) {
+			cir.setReturnValue((float) (cir.getReturnValue() * factor));
+		}
+	}
 
 	@Inject(method = "alignWithEntity", at = @At("TAIL"))
 	private void environmentai$conversationShot(float partialTick, CallbackInfo ci) {
