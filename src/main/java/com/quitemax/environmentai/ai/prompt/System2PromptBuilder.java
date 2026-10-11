@@ -41,6 +41,7 @@ public final class System2PromptBuilder {
 			user.append("No current target.\n");
 		}
 
+		user.append(Surroundings.describe(mob, config.awarenessRadiusBlocks));
 		user.append("Update the narrative state given this trigger.");
 
 		return new PromptRequest(SYSTEM_PROMPT, user.toString(), config.temperature, config.maxTokens);

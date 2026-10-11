@@ -54,6 +54,7 @@ public final class System1PromptBuilder {
 			user.append("No current target.\n");
 		}
 
+		user.append(Surroundings.describe(mob, config.awarenessRadiusBlocks));
 		user.append("Previous action: ").append(state.currentAction()).append('\n');
 		user.append("Pick the single best action now.");
 
