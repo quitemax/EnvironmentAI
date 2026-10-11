@@ -25,6 +25,18 @@ public class ModelTierConfig {
 	/** Mobs farther than this from every player are not given decisions or narrative refreshes (0 or less = no limit). */
 	public double activeRadiusBlocks = 48.0;
 	/**
+	 * Ask the provider to constrain replies to a JSON schema (valid actions only for System 1; exactly
+	 * the four narrative keys for System 2). Needs a provider that supports it (Ollama 0.5+);
+	 * turn off for older servers, which would reject the request.
+	 */
+	public boolean structuredOutput = true;
+	/**
+	 * Mobs lose their nerve against a heavily armed and armoured target: melee mobs flee, ranged
+	 * mobs keep their distance. Threat comes from the target's armour points and held weapon, and
+	 * fellow hostiles nearby steady the mob. Off disables the rule entirely.
+	 */
+	public boolean intimidationEnabled = true;
+	/**
 	 * Radius within which other creatures are listed in the prompt (type and distance, nearest
 	 * first). 0 or less disables it.
 	 */
@@ -65,10 +77,10 @@ public class ModelTierConfig {
 		config.provider = ProviderType.CLOUD;
 		config.model = "claude-sonnet-5";
 		config.temperature = 0.8;
-		// A narrative reply is ~50 tokens. A small model can run on appending junk JSON keys until
-		// the cap (one 17.9 s call hit 512), so keep the cap close to the real size; a truncated
-		// reply fails to parse and the mob simply keeps its previous narrative.
-		config.maxTokens = 160;
+		// The schema bounds every string, so a reply is at most ~560 characters (~140-170 tokens).
+		// The cap only needs margin above that; without a schema (see structuredOutput) a small model
+		// can run on appending junk until the cap, so keep it close rather than generous.
+		config.maxTokens = 200;
 		return config;
 	}
 }

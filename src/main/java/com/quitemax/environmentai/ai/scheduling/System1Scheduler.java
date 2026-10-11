@@ -4,6 +4,8 @@ import com.google.gson.JsonObject;
 import com.quitemax.environmentai.EnvironmentAI;
 import com.quitemax.environmentai.ai.action.ActionParser;
 import com.quitemax.environmentai.ai.action.MobAction;
+import com.quitemax.environmentai.ai.archetype.MobArchetype;
+import com.quitemax.environmentai.ai.perception.TargetAssessment;
 import com.quitemax.environmentai.ai.prompt.System1PromptBuilder;
 import com.quitemax.environmentai.ai.provider.ModelProvider;
 import com.quitemax.environmentai.ai.provider.PromptRequest;
@@ -17,6 +19,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.monster.Enemy;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -69,6 +72,13 @@ public class System1Scheduler {
 	 */
 	private static final float CRITICAL_FLEE_ENTER_RANGE = 16.0f;
 	private static final float CRITICAL_FLEE_EXIT_RANGE = 24.0f;
+	/** Intimidation only applies to a target this close, and is sustained a little further out. */
+	private static final float INTIMIDATION_ENTER_RANGE = 24.0f;
+	private static final float INTIMIDATION_EXIT_RANGE = 32.0f;
+	/** Fellow hostiles within this radius steady a mob's nerve, each by a little, up to a cap. */
+	private static final double FELLOW_HOSTILE_RADIUS = 8.0;
+	private static final double COMPANY_BONUS_EACH = 0.75;
+	private static final double MAX_COMPANY_BONUS = 3.0;
 	/** While a rule holds a mob in FLEE, log its situation at most this often, to verify it works. */
 	private static final long RULE_HEARTBEAT_MS = 1_000;
 	/** A target at or below this health fraction is worth finishing rather than fleeing from. */
@@ -105,7 +115,8 @@ public class System1Scheduler {
 			}
 		}
 
-		if (candidates.isEmpty()) {
+		// Rules above still ran; only model calls wait out the startup grace (see AiLoad).
+		if (candidates.isEmpty() || server.getTickCount() < AiLoad.STARTUP_GRACE_TICKS) {
 			return;
 		}
 
@@ -149,9 +160,10 @@ public class System1Scheduler {
 			return false;
 		}
 
-		if (shouldFleeByRule(mob, state)) {
-			applyRule(mob, state, MobAction.FLEE, "critical_flee");
-			logRuleHeartbeat(mob, state, MobAction.FLEE, "critical_flee_sustained");
+		Rule rule = decideRule(mob, state);
+		if (rule != null) {
+			applyRule(mob, state, rule.action(), rule.reason());
+			logRuleHeartbeat(mob, state, rule.action(), rule.reason() + "_sustained");
 			// The model path normally raises these escalations, and this mob no longer goes through it.
 			checkForSignificantEvent(mob, state);
 			return false;
@@ -197,25 +209,73 @@ public class System1Scheduler {
 		trainingLogger.recordRule(trainingLogger.snapshot(mob, state, null, now), action, reason);
 	}
 
+	/** A decision made by a rule instead of the model. */
+	private record Rule(MobAction action, String reason) {
+	}
+
 	/**
-	 * True if the critical-health flee reflex applies right now. Needs a target; sustaining uses
-	 * wider thresholds than entering so the mob doesn't flicker at the boundary.
+	 * The reflexes, in priority order, or null if none applies and the model should decide:
+	 * <ol>
+	 *   <li>{@code critical_flee}: badly wounded, so run from a target still dangerous;</li>
+	 *   <li>{@code intimidated}: the target's gear is beyond this mob's nerve, so melee mobs flee
+	 *       and ranged mobs keep their distance.</li>
+	 * </ol>
+	 * Both need a target. Sustaining uses wider thresholds than entering, so a mob doesn't flicker
+	 * at the boundary.
 	 */
-	private boolean shouldFleeByRule(Mob mob, MobAiState state) {
+	private Rule decideRule(Mob mob, MobAiState state) {
 		LivingEntity target = mob.getTarget();
 		if (target == null) {
-			return false;
+			return null;
 		}
+		// A target about to die is worth finishing, not running from, however hurt or scared we are.
 		if (target.getHealth() / target.getMaxHealth() <= TARGET_NEARLY_DEAD_FRACTION) {
-			return false;
+			return null;
 		}
 
 		float health = mob.getHealth() / mob.getMaxHealth();
 		float distance = mob.distanceTo(target);
-		if (state.currentAction() == MobAction.FLEE) {
-			return health < config.fleeExitHealth && distance <= CRITICAL_FLEE_EXIT_RANGE;
+		boolean fleeing = state.currentAction() == MobAction.FLEE;
+		boolean criticalFlee = fleeing
+			? health < config.fleeExitHealth && distance <= CRITICAL_FLEE_EXIT_RANGE
+			: health < config.fleeEnterHealth && distance <= CRITICAL_FLEE_ENTER_RANGE;
+		if (criticalFlee) {
+			return new Rule(MobAction.FLEE, "critical_flee");
 		}
-		return health < config.fleeEnterHealth && distance <= CRITICAL_FLEE_ENTER_RANGE;
+
+		if (config.intimidationEnabled && isIntimidated(mob, state, target, distance)) {
+			MobAction response = MobArchetype.of(mob) == MobArchetype.RANGED
+				? MobAction.KEEP_DISTANCE
+				: MobAction.FLEE;
+			return new Rule(response, "intimidated");
+		}
+		return null;
+	}
+
+	/**
+	 * Threat (0-10, from the target's armour and held weapon) against the mob's nerve, which its
+	 * archetype sets and fellow hostiles nearby raise. Sustaining needs only to stay within a point
+	 * of the nerve, so the mob doesn't swap between running and attacking as the player swings.
+	 */
+	private boolean isIntimidated(Mob mob, MobAiState state, LivingEntity target, float distance) {
+		MobAction previous = state.currentAction();
+		boolean sustaining = previous == MobAction.KEEP_DISTANCE || previous == MobAction.FLEE;
+		if (distance > (sustaining ? INTIMIDATION_EXIT_RANGE : INTIMIDATION_ENTER_RANGE)) {
+			return false;
+		}
+
+		TargetAssessment assessment = TargetAssessment.of(mob, target);
+		// Cheap reject before the area query: no archetype's nerve is below 6.
+		if (assessment.threat() < 5.0) {
+			return false;
+		}
+
+		long fellows = mob.level()
+			.getEntitiesOfClass(Mob.class, mob.getBoundingBox().inflate(FELLOW_HOSTILE_RADIUS),
+				other -> other != mob && other instanceof Enemy && other.isAlive())
+			.size();
+		double nerve = MobArchetype.of(mob).nerve() + Math.min(MAX_COMPANY_BONUS, fellows * COMPANY_BONUS_EACH);
+		return assessment.threat() >= (sustaining ? nerve - 1.0 : nerve);
 	}
 
 	private void dispatch(Mob mob, MobAiState state, long now) {
@@ -276,12 +336,23 @@ public class System1Scheduler {
 		}
 
 		MobAction parsed = ActionParser.tryParse(response, EnvironmentAI.LOGGER).orElse(null);
-		MobAction newAction = parsed != null ? parsed : state.currentAction();
-		if (newAction != MobAction.FLEE && shouldFleeByRule(mob, state)) {
-			// The mob became critical while this call was in flight; the rule wins over the answer.
-			newAction = MobAction.FLEE;
+		if (parsed != null && !System1PromptBuilder.validActions(mob).contains(parsed)) {
+			// Parsed, but not an action this mob may take in its current situation (e.g. WANDER
+			// with a target, or KEEP_DISTANCE for a zombie). Structured output normally prevents this;
+			// providers without it can still produce it, so it is rejected here as well.
+			EnvironmentAI.LOGGER.debug("System 1 chose {} which is not valid for {}", parsed, mob.getType());
 			if (trainingRow != null) {
-				trainingRow.addProperty("override", "critical_flee");
+				trainingRow.addProperty("invalid_action", parsed.name());
+			}
+			parsed = null;
+		}
+		MobAction newAction = parsed != null ? parsed : state.currentAction();
+		Rule rule = decideRule(mob, state);
+		if (rule != null && newAction != rule.action()) {
+			// A rule became applicable while this call was in flight; it wins over the answer.
+			newAction = rule.action();
+			if (trainingRow != null) {
+				trainingRow.addProperty("override", rule.reason());
 			}
 		} else if (holdFlee(state, newAction, appliedAt)) {
 			newAction = MobAction.FLEE;

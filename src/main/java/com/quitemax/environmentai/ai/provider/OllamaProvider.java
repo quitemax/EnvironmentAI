@@ -37,7 +37,12 @@ public class OllamaProvider implements ModelProvider {
 		body.addProperty("system", request.systemPrompt());
 		body.addProperty("prompt", request.userPrompt());
 		body.addProperty("stream", false);
-		body.addProperty("format", "json");
+		// A schema makes Ollama constrain decoding to it; plain "json" only guarantees valid JSON.
+		if (request.responseSchema() != null) {
+			body.add("format", request.responseSchema());
+		} else {
+			body.addProperty("format", "json");
+		}
 		JsonObject options = new JsonObject();
 		options.addProperty("temperature", request.temperature());
 		options.addProperty("num_predict", request.maxTokens());

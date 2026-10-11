@@ -1,5 +1,8 @@
 package com.quitemax.environmentai.ai.prompt;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.quitemax.environmentai.ai.perception.TargetAssessment;
 import com.quitemax.environmentai.ai.provider.PromptRequest;
 import com.quitemax.environmentai.ai.state.MobAiState;
 import com.quitemax.environmentai.config.ModelTierConfig;
@@ -36,6 +39,7 @@ public final class System2PromptBuilder {
 		LivingEntity target = mob.getTarget();
 		if (target != null) {
 			user.append("Current target: ").append(describe(target)).append('\n');
+			user.append(TargetAssessment.of(mob, target).describe()).append('\n');
 			user.append("Current target distance: ").append(mob.distanceTo(target)).append(" blocks\n");
 		} else {
 			user.append("No current target.\n");
@@ -44,7 +48,33 @@ public final class System2PromptBuilder {
 		user.append(Surroundings.describe(mob, config.awarenessRadiusBlocks));
 		user.append("Update the narrative state given this trigger.");
 
-		return new PromptRequest(SYSTEM_PROMPT, user.toString(), config.temperature, config.maxTokens);
+		JsonObject schema = config.structuredOutput ? narrativeSchema() : null;
+		return new PromptRequest(SYSTEM_PROMPT, user.toString(), config.temperature, config.maxTokens, schema);
+	}
+
+	/** Exactly the four narrative keys, all strings: a small model cannot append junk keys. */
+	private static JsonObject narrativeSchema() {
+		JsonObject properties = new JsonObject();
+		JsonArray required = new JsonArray();
+		// maxLength matters as much as the keys: a schema alone still lets a small model write an
+		// essay inside one string until the token cap, which cuts the JSON off and loses the reply.
+		// The bounds sum to well under the token cap even at ~3 characters per token.
+		String[] keys = {"disposition", "intent", "target_description", "memory_notes"};
+		int[] maxLengths = {40, 120, 80, 240};
+		for (int i = 0; i < keys.length; i++) {
+			JsonObject string = new JsonObject();
+			string.addProperty("type", "string");
+			string.addProperty("maxLength", maxLengths[i]);
+			properties.add(keys[i], string);
+			required.add(keys[i]);
+		}
+
+		JsonObject schema = new JsonObject();
+		schema.addProperty("type", "object");
+		schema.add("properties", properties);
+		schema.add("required", required);
+		schema.addProperty("additionalProperties", false);
+		return schema;
 	}
 
 	/**
