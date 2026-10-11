@@ -87,7 +87,12 @@ public final class DialogueService {
 		if (target.isEmpty()) {
 			return Optional.of("Look at a villager (within " + (int) TALK_RANGE + " blocks) to talk to them.");
 		}
-		return talkTo(player, target.get(), rawText);
+		Optional<String> refusal = talkTo(player, target.get(), rawText);
+		if (refusal.isEmpty()) {
+			// The command leaves no trace of what you said; echo it so the chat reads as a conversation.
+			player.sendSystemMessage(Component.literal("<You> " + sanitize(rawText, MAX_PLAYER_TEXT)));
+		}
+		return refusal;
 	}
 
 	/**
@@ -117,7 +122,10 @@ public final class DialogueService {
 		state.setDialogueInFlight(true);
 		String name = displayName(villager);
 		// An action-bar line, so a slow model reads as the villager pausing rather than nothing happening.
-		player.sendSystemMessage(Component.literal(name + " is thinking..."), true);
+		// Not inside a conversation: the conversation screen already shows "..." in the subtitle.
+		if (!ConversationManager.isInConversation(player.getUUID())) {
+			player.sendSystemMessage(Component.literal(name + " is thinking..."), true);
+		}
 		// Turn to face the speaker. The Brain may override it after the expiry, which is fine.
 		villager.getBrain().setMemoryWithExpiry(
 			MemoryModuleType.LOOK_TARGET, new EntityTracker(player, true), 100L
@@ -283,7 +291,11 @@ public final class DialogueService {
 			state.remember(player.getUUID(), new VillagerState.Exchange(playerText, reply));
 		}
 
-		player.sendSystemMessage(Component.literal("<" + name + "> " + reply));
+		// Inside a conversation the reply is shown on the conversation screen, and the client writes
+		// the whole exchange to chat when it ends; posting it here too would draw it twice.
+		if (!ConversationManager.isInConversation(player.getUUID())) {
+			player.sendSystemMessage(Component.literal("<" + name + "> " + reply));
+		}
 
 		// If the player is in a conversation screen, show it there too; a frightening reply may also
 		// end the conversation and send the villager running.

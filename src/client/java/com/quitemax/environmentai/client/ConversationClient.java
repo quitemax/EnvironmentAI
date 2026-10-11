@@ -1,8 +1,11 @@
 package com.quitemax.environmentai.client;
 
 import com.quitemax.environmentai.network.ConversationPayloads;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 
@@ -32,6 +35,13 @@ public final class ConversationClient {
 	private static boolean pending;
 	private static long pendingSinceNanos;
 	private static final Deque<String> transcript = new ArrayDeque<>();
+	/**
+	 * Everything said this conversation, kept in full (bounded only for sanity) and written to chat
+	 * once when it ends. Chat is deliberately not touched while the conversation is on screen: the
+	 * screen already shows the exchange, and chat lines over the film frame would duplicate it.
+	 */
+	private static final List<String> session = new ArrayList<>();
+	private static final int SESSION_LIMIT = 300;
 	private static ConversationPayloads.Status status;
 
 	private ConversationClient() {
@@ -46,6 +56,7 @@ public final class ConversationClient {
 		lastLine = "";
 		pending = false;
 		transcript.clear();
+		session.clear();
 		status = null;
 		phase = Phase.IN;
 		phaseStartNanos = System.nanoTime();
@@ -56,6 +67,7 @@ public final class ConversationClient {
 		if (phase == Phase.NONE || phase == Phase.OUT) {
 			return;
 		}
+		flushToChat();
 		// Ease out from wherever the ease-in had got to, so a quick exit does not snap. The blend is
 		// smooth(t), so the matching position on the way out is the inverse of that curve.
 		double current = blend();
@@ -122,6 +134,7 @@ public final class ConversationClient {
 	// --- text ----------------------------------------------------------------------------------
 
 	public static void onPlayerLine(String text) {
+		addSession("<You> " + text);
 		addTranscript("You: " + text);
 		pending = true;
 		pendingSinceNanos = System.nanoTime();
@@ -131,12 +144,35 @@ public final class ConversationClient {
 		pending = false;
 		if (speaker.isEmpty()) {
 			// A system line (a refusal, "give them a moment"): shown, but it is not the villager speaking.
+			addSession(text);
 			addTranscript(text);
 			return;
 		}
 		lastLineSpeaker = speaker;
 		lastLine = text;
+		addSession("<" + speaker + "> " + text);
 		addTranscript(speaker + ": " + text);
+	}
+
+	private static void addSession(String line) {
+		if (session.size() < SESSION_LIMIT) {
+			session.add(line);
+		}
+	}
+
+	/** Writes the whole exchange to chat, once, so it can be read back after the conversation. */
+	private static void flushToChat() {
+		if (session.isEmpty()) {
+			return;
+		}
+		Minecraft minecraft = Minecraft.getInstance();
+		if (minecraft.player != null) {
+			minecraft.player.sendSystemMessage(Component.literal("-- Conversation with " + villagerName + " --"));
+			for (String line : session) {
+				minecraft.player.sendSystemMessage(Component.literal(line));
+			}
+		}
+		session.clear();
 	}
 
 	private static void addTranscript(String line) {

@@ -133,6 +133,10 @@ stays open so you can keep talking line after line. The villager's last line is 
 Escape, stepping more than a metre away, an attack on the villager, or a hostile creature
 appearing ends it; saying something that frightens it makes it run away. The frame is framed like
 a film shot: a zoom, letterbox bars, and a status panel with the villager's mood and standing.
+Chat stays quiet while the conversation is on screen (it would duplicate it); when it ends, the
+whole exchange, including your own lines, is written to chat. The framing is the
+`conversationCamera` block of `config/environmentai.json` (`behind`, `aside`, `above`,
+`aimTowardPlayer`, `zoom`), read by the client, so it can be tuned without rebuilding.
 
 Villagers also speak first, for a few real reasons (a strong mood, a nearby threat, being thanked
 for a cure, a greeting). One event is seen by a whole village, so a gate lets exactly one villager

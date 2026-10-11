@@ -1,5 +1,7 @@
 package com.quitemax.environmentai.client;
 
+import com.quitemax.environmentai.EnvironmentAI;
+import com.quitemax.environmentai.config.EnvironmentAIConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -15,20 +17,14 @@ import net.minecraft.world.phys.Vec3;
  * looking at the villager's head. Pure geometry; {@code CameraMixin} applies the result.
  */
 public final class ConversationCamera {
-	/**
-	 * The camera sits just behind and well to the right of the player, slightly above, so the
-	 * player's own head is out of the way and the villager's face is clear. The aim point is nudged
-	 * toward the player so the villager sits in the right third of the frame with the player
-	 * balancing it on the left.
-	 */
-	private static final double BEHIND = 0.35;
-	private static final double ASIDE = 1.35;
-	private static final double ABOVE = 0.35;
-	private static final double AIM_TOWARD_PLAYER = 0.40;
 	/** Pulled in from a wall by this much so the near plane does not clip into it. */
 	private static final double WALL_MARGIN = 0.15;
-	/** The view is narrowed to this fraction of the normal field of view at full blend (a zoom). */
-	private static final double ZOOM = 0.70;
+
+	/** The framing numbers live in the config so they can be tuned without a rebuild. */
+	private static EnvironmentAIConfig.ConversationCameraConfig framing() {
+		EnvironmentAIConfig config = EnvironmentAI.config();
+		return config != null ? config.conversationCamera : new EnvironmentAIConfig.ConversationCameraConfig();
+	}
 
 	public record Shot(Vec3 position, float yRot, float xRot) {
 	}
@@ -39,7 +35,7 @@ public final class ConversationCamera {
 	/** The multiplier for the field of view this frame: 1.0 normally, {@code ZOOM} at full blend. */
 	public static double fovFactor() {
 		double blend = ConversationClient.blend();
-		return 1.0 - (1.0 - ZOOM) * blend;
+		return 1.0 - (1.0 - framing().zoom) * blend;
 	}
 
 	/**
@@ -74,10 +70,11 @@ public final class ConversationCamera {
 		// Right-hand side of the player's line of sight to the villager.
 		Vec3 right = new Vec3(-forward.z, 0.0, forward.x);
 
+		EnvironmentAIConfig.ConversationCameraConfig frame = framing();
 		Vec3 desired = playerEye
-			.subtract(forward.scale(BEHIND))
-			.add(right.scale(ASIDE))
-			.add(0.0, ABOVE, 0.0);
+			.subtract(forward.scale(frame.behind))
+			.add(right.scale(frame.aside))
+			.add(0.0, frame.above, 0.0);
 
 		// Keep the camera on the player's side of any wall between it and the player's head.
 		BlockHitResult hit = level.clip(
@@ -90,7 +87,7 @@ public final class ConversationCamera {
 				: hit.getLocation().add(inward.normalize().scale(WALL_MARGIN));
 		}
 
-		Vec3 target = villagerHead.add(0.0, -0.1, 0.0).subtract(right.scale(AIM_TOWARD_PLAYER));
+		Vec3 target = villagerHead.add(0.0, -0.1, 0.0).subtract(right.scale(frame.aimTowardPlayer));
 		Vec3 look = target.subtract(desired);
 		double horizontal = Math.sqrt(look.x * look.x + look.z * look.z);
 		float shotYaw = (float) (Mth.atan2(-look.x, look.z) * (180.0 / Math.PI));

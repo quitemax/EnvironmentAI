@@ -135,6 +135,14 @@ conversation. The server owns the state; the client only frames the shot and sho
 - **Status panel:** name and level, mood with its reason (colour-coded), what it is doing, health,
   how it feels about you (from vanilla gossip) and its temperament. The server sends it on start and
   whenever it changes.
+- **Tuning:** the framing numbers are the `conversationCamera` config block, not constants:
+  `behind` (distance back from the player), `aside` (the side angle; larger is wider), `above`,
+  `aimTowardPlayer` and `zoom` (field-of-view multiplier). First in-game feedback was "too close"
+  and "angle a little too wide", moved from behind 0.35 / aside 1.35 / zoom 0.70 to
+  1.4 / 1.1 / 0.80, then settled at **1.8 / 1.2 / 0.80** after a second look.
+- **Chat during a conversation:** nothing is posted to chat while the conversation is on screen,
+  since the screen already shows it. The whole exchange, with your own lines, is written to chat
+  once when it ends, under a "Conversation with ..." header, so it can be read back afterwards.
 - **Background blur: not done, deliberately.** The vanilla blur is a whole-frame effect, so it would
   blur the villager along with the background. Isolating the villager needs a depth-aware
   post-process; the edge shading is the cheap stand-in.

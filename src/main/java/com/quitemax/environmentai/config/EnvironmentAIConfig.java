@@ -24,6 +24,25 @@ public class EnvironmentAIConfig {
 	 * Changes speech only; villager movement is never touched.
 	 */
 	public boolean villagerMoodEnabled = true;
+
+	/**
+	 * Framing of the conversation camera, in blocks and multipliers. Read by the client each frame,
+	 * so edit the file and restart (or relaunch); no rebuild. Tuned by eye, so expect to adjust.
+	 */
+	public ConversationCameraConfig conversationCamera = new ConversationCameraConfig();
+
+	public static class ConversationCameraConfig {
+		/** How far behind the player's eyes the camera sits. Larger = further from both people. */
+		public double behind = 1.8;
+		/** How far to the player's right. Larger = a wider angle on the pair; smaller = more head-on. */
+		public double aside = 1.2;
+		/** How far above the player's eyes. */
+		public double above = 0.35;
+		/** Shifts the aim toward the player, so the villager sits in the right third of the frame. */
+		public double aimTowardPlayer = 0.40;
+		/** Field-of-view multiplier at full blend. 1.0 = no zoom, smaller = tighter. */
+		public double zoom = 0.80;
+	}
 	/**
 	 * With a strong mood (afraid, terrified, grieving, angry) a villager may exclaim something
 	 * unprompted to a player within 10 blocks, at most once a minute. Costs one System 3 call each.

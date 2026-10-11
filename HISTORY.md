@@ -177,3 +177,22 @@ smoke test only proved the mixin *applied* cleanly, not that it *fired* on the m
   Tested outside the game: twelve villagers wanting to thank one player yield one thanks.
 - Background blur was not added: vanilla's blur is whole-frame and would blur the villager too.
 
+## 2026-10-11 — Camera tuning and a quiet chat during conversations
+
+- Second round of in-game feedback: too close to both people, and the side angle a little wide.
+  Camera moved back (0.35 to 1.4 blocks), side offset reduced (1.35 to 1.1), zoom eased (0.70 to
+  0.80); after a second look settled at 1.8 / 1.2 / 0.80. The numbers are now a `conversationCamera` config block so further tuning needs no rebuild.
+- Chat no longer receives the villager's replies or the "thinking" action-bar line while a
+  conversation is on screen (they duplicated the subtitle); the client keeps the session and writes
+  it to chat once at the end, including the player's own lines. The `/talk` command echoes the
+  player's line too, so its chat also reads as a conversation.
+
+## 2026-10-11 — Camera settled; narrator and director design
+
+- Camera settled at behind 1.8 / aside 1.2 / zoom 0.80 after three rounds of in-game feedback.
+- Design written for a player-state tracker, a comic-caption narrator and an Alien: Isolation-style
+  director that paces a run through the advancement ladder to the dragon, with per-world seeded arcs
+  (`docs/NARRATOR_DIRECTOR.md`). Checked against the game's data first: the story chain runs
+  `mine_stone` to `enter_the_end`, the dragon is in the `end` tab, and the blaze rods and pearls
+  needed on the way are not on the story path. Advancement completion has no Fabric event.
+
