@@ -20,6 +20,12 @@ public enum MobArchetype {
 	SKITTISH(6.5, List.of(MobAction.ATTACK, MobAction.FLEE, MobAction.APPROACH, MobAction.GUARD)),
 	/** Creepers: ATTACK defers to the vanilla swell-and-explode behaviour. */
 	EXPLOSIVE(7.0, List.of(MobAction.ATTACK, MobAction.APPROACH, MobAction.FLEE, MobAction.GUARD)),
+	/**
+	 * Endermen and the like: passive until provoked, then fixed on the one who provoked them. They
+	 * are never intimidated by gear. Left as {@link #MELEE}, a geared player staring at one made it
+	 * back away (66 FLEE decisions in a single playtest), which is the opposite of an enderman.
+	 */
+	RELENTLESS(99.0, List.of(MobAction.ATTACK, MobAction.APPROACH, MobAction.GUARD)),
 	/** Skeletons, pillagers, witches, drowned: shoot from range and prefer not to be caught. */
 	RANGED(6.0, List.of(
 		MobAction.ATTACK, MobAction.KEEP_DISTANCE, MobAction.FLEE, MobAction.APPROACH, MobAction.GUARD
@@ -55,6 +61,7 @@ public enum MobArchetype {
 		return switch (EntityType.getKey(mob.getType()).getPath()) {
 			case "creeper" -> EXPLOSIVE;
 			case "spider", "cave_spider" -> SKITTISH;
+			case "enderman" -> RELENTLESS;
 			default -> MELEE;
 		};
 	}

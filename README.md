@@ -110,6 +110,7 @@ easily it loses its nerve:
 | `MELEE` | zombie and most others | ATTACK, FLEE, APPROACH, GUARD | 9.0 |
 | `SKITTISH` | spiders | ATTACK, FLEE, APPROACH, GUARD | 6.5 |
 | `EXPLOSIVE` | creeper (ATTACK defers to the vanilla swell) | ATTACK, APPROACH, FLEE, GUARD | 7.0 |
+| `RELENTLESS` | enderman (never intimidated by gear) | ATTACK, APPROACH, GUARD | 99 |
 | `RANGED` | skeleton, pillager, witch, drowned (anything `RangedAttackMob`) | ATTACK, KEEP_DISTANCE, FLEE, APPROACH, GUARD | 6.0 |
 
 `KEEP_DISTANCE` backs a ranged mob off when the target is within 7 blocks and otherwise leaves it

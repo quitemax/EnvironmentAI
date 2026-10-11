@@ -234,3 +234,14 @@ smoke test only proved the mixin *applied* cleanly, not that it *fired* on the m
   a villager in earshot passes on a plain rumour about the next goal. One per slack, gated by the
   existing voice ledger, never over a conversation. Every goal now carries a hand-written `rumour`
   beside its oblique hint. Mob pressure is deliberately left for a separate decision.
+
+## 2026-10-12 — The retreating enderman, and a design for mob behaviour
+
+- A geared player looking at an enderman made it back away. The call log showed 66 FLEE decisions in
+  one playtest: endermen were plain melee (nerve 9) and a netherite player's threat of 10 tripped the
+  intimidation rule. Fixed with a `RELENTLESS` archetype that is never intimidated. The bug was ours,
+  not vanilla's.
+- Wrote `docs/MOB_BEHAVIOR.md`: group tactics and flanking, biome variants with gear that drops,
+  villagers and the bell, pillagers, the Nether cast, skeleton-spider pairing, and a single relations
+  table for mobs and animals. Design only; the open questions (loot scope, difficulty defaults) are
+  listed there.
