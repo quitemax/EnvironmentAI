@@ -51,11 +51,15 @@ public final class VillagerState {
 		Codec.STRING.optionalFieldOf("mood_reason", "").forGetter(state -> state.moodReason),
 		Codec.LONG.optionalFieldOf("mood_since", 0L).forGetter(state -> state.moodSince),
 		Event.CODEC.listOf().optionalFieldOf("events", List.of()).forGetter(state -> state.events),
-		Codec.LONG.optionalFieldOf("last_nudge_day", -1L).forGetter(state -> state.lastNudgeDay)
+		Codec.LONG.optionalFieldOf("last_nudge_day", -1L).forGetter(state -> state.lastNudgeDay),
+		Codec.unboundedMap(UUIDUtil.STRING_CODEC, Codec.LONG)
+			.optionalFieldOf("last_seen", Map.of()).forGetter(state -> state.lastSeen)
 	).apply(instance, VillagerState::new));
 
 	private final Map<UUID, List<Exchange>> conversations = new HashMap<>();
 	private final List<Event> events = new ArrayList<>();
+	/** Game time each player was last seen near this villager, for noticing a return. */
+	private final Map<UUID, Long> lastSeen = new HashMap<>();
 	private String mood;
 	private String moodReason;
 	private long moodSince;
@@ -69,7 +73,7 @@ public final class VillagerState {
 
 	private VillagerState(
 		Map<UUID, List<Exchange>> conversations, String mood, String moodReason, long moodSince,
-		List<Event> events, long lastNudgeDay
+		List<Event> events, long lastNudgeDay, Map<UUID, Long> lastSeen
 	) {
 		conversations.forEach((player, exchanges) -> this.conversations.put(player, new ArrayList<>(exchanges)));
 		this.mood = mood;
@@ -77,10 +81,27 @@ public final class VillagerState {
 		this.moodSince = moodSince;
 		this.events.addAll(events);
 		this.lastNudgeDay = lastNudgeDay;
+		this.lastSeen.putAll(lastSeen);
 	}
 
 	public static VillagerState createDefault() {
-		return new VillagerState(Map.of(), "calm", "", 0L, List.of(), -1L);
+		return new VillagerState(Map.of(), "calm", "", 0L, List.of(), -1L, Map.of());
+	}
+
+	/** Game time this player was last seen near this villager, or -1 if never. */
+	public long lastSeen(UUID player) {
+		return lastSeen.getOrDefault(player, -1L);
+	}
+
+	public void markSeen(UUID player, long gameTime) {
+		lastSeen.put(player, gameTime);
+		while (lastSeen.size() > MAX_PLAYERS_REMEMBERED) {
+			UUID oldest = lastSeen.keySet().iterator().next();
+			if (oldest.equals(player)) {
+				break;
+			}
+			lastSeen.remove(oldest);
+		}
 	}
 
 	// --- conversation memory -------------------------------------------------------------------

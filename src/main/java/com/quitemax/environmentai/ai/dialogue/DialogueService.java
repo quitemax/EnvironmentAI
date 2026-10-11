@@ -56,8 +56,8 @@ public final class DialogueService {
 			+ "\"warm|neutral|cold|afraid\"} where feeling is how the traveler's words made you feel.";
 
 	private static final String AMBIENT_SYSTEM_PROMPT =
-		"You are a villager in a Minecraft village. Something has just happened and you react out "
-			+ "loud, unprompted, in character as described. One short exclamation, under twelve words, "
+		"You are a villager in a Minecraft village. Something has just happened and you speak up "
+			+ "unprompted, in character as described. One short line, under fourteen words, "
 			+ "plain speech. Use only the facts you are given. Never mention being an AI or a game, and "
 			+ "do not describe actions in asterisks. Respond with strict JSON only: {\"reply\": \"...\"}.";
 
@@ -146,21 +146,32 @@ public final class DialogueService {
 	}
 
 	/**
-	 * An unprompted exclamation after a strong mood change (a villager flinches, shouts, or mourns).
-	 * One short line to one player, no history and no reputation effect, and silent on failure:
-	 * nobody asked for this, so an error is never worth showing.
+	 * An unprompted line: a warning, thanks, a greeting, or a reaction to a strong mood. Always one
+	 * short line to one player, with no history and no reputation effect, and silent on failure:
+	 * nobody asked for this, so an error is never worth showing. Whether and by whom it may be spoken
+	 * is decided before this is called (see {@code ProactiveVoice}).
+	 *
+	 * @param situation what just happened, in the villager's own terms
+	 * @param group     how many villagers share it; above one, the speaker talks for all of them
+	 * @param why       a short label for the log
 	 */
-	public void speakAmbient(Villager villager, ServerPlayer player, String mood, String reason) {
+	public void speakProactive(Villager villager, ServerPlayer player, String situation, int group, String why) {
 		VillagerState state = villager.getAttachedOrCreate(ModAttachments.VILLAGER_STATE);
 		if (state.isDialogueInFlight()) {
 			return;
 		}
 		state.setDialogueInFlight(true);
 
-		String user = "Your character: " + VillagerPersona.of(villager) + ".\n"
-			+ VillagerContext.describe(villager, player)
-			+ "You have just become " + mood + (reason.isEmpty() ? "" : " because " + reason) + ".\n"
-			+ "Say one short spontaneous exclamation out loud about it, under twelve words.";
+		StringBuilder prompt = new StringBuilder();
+		prompt.append("Your character: ").append(VillagerPersona.of(villager)).append(".\n");
+		prompt.append(VillagerContext.describe(villager, player));
+		prompt.append(situation).append('\n');
+		if (group > 1) {
+			prompt.append("About ").append(group).append(" villagers nearby feel the same, and you are the one "
+				+ "who speaks for all of them: say \"we\", not \"I\".\n");
+		}
+		prompt.append("Say one short spontaneous line out loud about it, under fourteen words.");
+		String user = prompt.toString();
 		JsonObject schema = config.structuredOutput ? ambientSchema() : null;
 		PromptRequest request = new PromptRequest(AMBIENT_SYSTEM_PROMPT, user, config.temperature, 80, schema);
 
@@ -192,8 +203,9 @@ public final class DialogueService {
 					player.sendSystemMessage(Component.literal("<" + name + "> " + line));
 				}
 				if (row != null) {
-					row.addProperty("source", throwable != null ? "error" : "ambient");
-					row.addProperty("mood", mood);
+					row.addProperty("source", throwable != null ? "error" : "proactive");
+					row.addProperty("why", why);
+					row.addProperty("group", group);
 					row.addProperty("reply", line);
 					row.addProperty("response_ms", respondedAt - now);
 					callLogger.logRow(row);

@@ -163,3 +163,17 @@ smoke test only proved the mixin *applied* cleanly, not that it *fired* on the m
 - In 26.3: screens are on `Gui`, rendering is `extractRenderState(GuiGraphicsExtractor, ...)`, payload
   registries are `serverboundPlay()`/`clientboundPlay()`, and the camera pose is `alignWithEntity`.
 
+## 2026-10-11 — Conversation look, status panel, speaking first
+
+- Feedback from the first in-game use: the villager was hard to see. Camera moved further to the
+  side and slightly above; the field of view narrows to 70% with the same easing; black letterbox
+  bars and edge shading added; the screen now outlives the conversation by the ease-out so the bars
+  slide away with the shot.
+- Status panel (name, mood and reason, activity, health, standing toward you, temperament) driven by
+  a server `Status` payload sent on start and on change.
+- Villagers can speak first (mood, warning, thanks, greeting). The design problem was many
+  villagers wanting to speak at once; `VoiceLedger` gates every attempt per player and per reason,
+  a speaker is chosen by distance and line of sight, and it is told its group size to say "we".
+  Tested outside the game: twelve villagers wanting to thank one player yield one thanks.
+- Background blur was not added: vanilla's blur is whole-frame and would blur the villager too.
+

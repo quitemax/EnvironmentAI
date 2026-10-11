@@ -66,6 +66,7 @@ Get-Content run\environmentai\training\*.jsonl | ConvertFrom-Json | Group-Object
 | `eai:scenario/village_talk` | Dialogue | Librarian, farmer, weaponsmith and an unemployed villager | `/talk hello`; inspect each; replies match profession |
 | `eai:scenario/village_threat` | Villager mood | Three villagers, a stationary zombie 8 blocks away, no golem | `inspect` shows `mood=afraid`; may exclaim; `/talk` reflects it |
 | `eai:scenario/village_golem` | Villager mood | Same, with an iron golem | `mood=uneasy`, not `afraid` |
+| `eai:scenario/village_thanks` | Speaking first (thanks) | Four villagers and a weakened zombie villager in a pen | Cure it: exactly **one** villager thanks you, saying "we" |
 | `eai:scenario/intimidation` | Intimidation | One zombie, skeleton, spider and creeper at 12 blocks | Compare geared vs ungeared (below) |
 
 Gear for intimidation tests: `/function eai:gear/netherite` (or `diamond`, `iron`, `none`) equips

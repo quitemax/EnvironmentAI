@@ -34,6 +34,7 @@ SCENARIOS = [
     ("village_talk", "villagers with professions; /talk to them"),
     ("village_threat", "L2 mood: villagers + a zombie, no golem (afraid)"),
     ("village_golem", "L2 mood: same threat with an iron golem (uneasy)"),
+    ("village_thanks", "cure a zombie villager; one villager thanks you for all"),
 ]
 
 

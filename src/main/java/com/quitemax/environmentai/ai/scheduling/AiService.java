@@ -6,6 +6,7 @@ import com.quitemax.environmentai.ai.dialogue.DialogueService;
 import com.quitemax.environmentai.ai.provider.ModelProvider;
 import com.quitemax.environmentai.ai.provider.ProviderFactory;
 import com.quitemax.environmentai.ai.training.TrainingDataLogger;
+import com.quitemax.environmentai.ai.villager.ProactiveVoice;
 import com.quitemax.environmentai.ai.villager.VillagerMoodService;
 import com.quitemax.environmentai.config.EnvironmentAIConfig;
 import com.quitemax.environmentai.config.ModelTierConfig;
@@ -45,8 +46,9 @@ public final class AiService {
 		TrainingDataLogger villagerLogger = createLogger(config, "villager", config.system3, stamp);
 		this.dialogueService = new DialogueService(system3Provider, config.system3, villagerLogger);
 		this.conversationManager = new ConversationManager(dialogueService);
+		ProactiveVoice voice = new ProactiveVoice(dialogueService, config.villagerAmbientChatter);
 		this.moodService = config.villagerMoodEnabled
-			? new VillagerMoodService(dialogueService, villagerLogger, config.villagerAmbientChatter)
+			? new VillagerMoodService(voice, villagerLogger)
 			: null;
 	}
 

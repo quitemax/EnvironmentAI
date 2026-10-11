@@ -2,7 +2,6 @@ package com.quitemax.environmentai.ai.villager;
 
 import com.google.gson.JsonObject;
 import com.quitemax.environmentai.EnvironmentAI;
-import com.quitemax.environmentai.ai.dialogue.DialogueService;
 import com.quitemax.environmentai.ai.dialogue.VillagerContext;
 import com.quitemax.environmentai.ai.state.ModAttachments;
 import com.quitemax.environmentai.ai.state.VillagerState;
@@ -23,6 +22,7 @@ import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.player.Player;
 
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -43,20 +43,21 @@ public final class VillagerMoodService {
 	private static final double GOLEM_RADIUS = 24.0;
 	private static final double WITNESS_RADIUS = 24.0;
 	private static final double AMBIENT_PLAYER_RADIUS = 10.0;
-	private static final long AMBIENT_COOLDOWN_MS = 60_000;
+	private static final double WARN_PLAYER_RADIUS = 16.0;
+	private static final double GREET_RADIUS = 8.0;
+	/** Two in-game days: long enough that walking past a villager twice is not a "return". */
+	private static final long RETURN_GAP_TICKS = 48_000;
 
 	private static VillagerMoodService instance;
 
 	private final Map<UUID, Villager> villagers = new ConcurrentHashMap<>();
-	private final DialogueService dialogue;
+	private final ProactiveVoice voice;
 	/** Null when call logging is disabled. */
 	private final TrainingDataLogger logger;
-	private final boolean ambientChatter;
 
-	public VillagerMoodService(DialogueService dialogue, TrainingDataLogger logger, boolean ambientChatter) {
-		this.dialogue = dialogue;
+	public VillagerMoodService(ProactiveVoice voice, TrainingDataLogger logger) {
+		this.voice = voice;
 		this.logger = logger;
-		this.ambientChatter = ambientChatter;
 	}
 
 	public void register() {
@@ -110,6 +111,16 @@ public final class VillagerMoodService {
 		} else if (type == ReputationEventType.ZOMBIE_VILLAGER_CURED) {
 			kind = VillagerMood.CURED;
 			text = "saw a zombie villager cured";
+			// Every nearby villager receives this event; the ledger lets exactly one thank the player,
+			// on behalf of the others.
+			if (source instanceof ServerPlayer player) {
+				instance.voice.offer(
+					VoiceLedger.Reason.THANKS,
+					"The traveler has just cured a zombie villager of its curse, to everyone's relief. "
+						+ "Thank them.",
+					villager, player
+				);
+			}
 		} else {
 			return;
 		}
@@ -186,15 +197,52 @@ public final class VillagerMoodService {
 			.isEmpty();
 
 		if (hostileNear && !state.hostileNear()) {
-			state.addEvent(new VillagerState.Event(
-				now, VillagerMood.THREAT, "a " + describe(hostiles.get(0)).replace("a ", "") + " came close"
-			));
+			String type = describe(hostiles.get(0)).replaceFirst("^an? ", "");
+			state.addEvent(new VillagerState.Event(now, VillagerMood.THREAT, "a " + type + " came close"));
+
+			Player nearest = level.getNearestPlayer(villager, WARN_PLAYER_RADIUS);
+			if (nearest instanceof ServerPlayer player) {
+				voice.offer(
+					VoiceLedger.Reason.WARNING,
+					String.format(Locale.ROOT,
+						"A %s has come close, about %.0f blocks away. A traveler is nearby and may not "
+							+ "have noticed. Warn them.",
+						type, villager.distanceTo(hostiles.get(0))),
+					villager, player
+				);
+			}
 		}
+		greetIfReturned(villager, state, level, now);
 		state.setHostileNear(hostileNear);
 		state.setGolemNear(golemNear);
 		state.markEvaluated(now);
 
 		refresh(villager, state, level);
+	}
+
+	/**
+	 * Notices a player arriving, or coming back after a long absence, and offers a greeting. Every
+	 * villager that sees the player updates its own last-seen time, so only the first to notice
+	 * (the ledger lets one through) greets, and the rest do not greet a minute later.
+	 */
+	private void greetIfReturned(Villager villager, VillagerState state, ServerLevel level, long now) {
+		Player nearest = level.getNearestPlayer(villager, GREET_RADIUS);
+		if (!(nearest instanceof ServerPlayer player) || !villager.hasLineOfSight(player)) {
+			return;
+		}
+
+		long seen = state.lastSeen(player.getUUID());
+		boolean first = seen < 0;
+		boolean returning = !first && now - seen > RETURN_GAP_TICKS;
+		state.markSeen(player.getUUID(), now);
+
+		if (first || returning) {
+			voice.offer(
+				VoiceLedger.Reason.GREETING,
+				first ? "A traveler has come near." : "A traveler who had been away for a long time has come back.",
+				villager, player
+			);
+		}
 	}
 
 	// --- mood ----------------------------------------------------------------------------------
@@ -242,19 +290,19 @@ public final class VillagerMoodService {
 	}
 
 	private void maybeSpeak(Villager villager, VillagerState state, VillagerMood.Mood mood) {
-		if (!ambientChatter || !VillagerMood.isVocal(mood.name())) {
-			return;
-		}
-		long nowMs = System.currentTimeMillis();
-		if (nowMs - state.lastAmbientMs() < AMBIENT_COOLDOWN_MS) {
+		if (!VillagerMood.isVocal(mood.name())) {
 			return;
 		}
 		Player nearest = villager.level().getNearestPlayer(villager, AMBIENT_PLAYER_RADIUS);
 		if (!(nearest instanceof ServerPlayer player) || !villager.hasLineOfSight(player)) {
 			return;
 		}
-		state.markAmbient(nowMs);
-		dialogue.speakAmbient(villager, player, mood.name(), mood.reason());
+		voice.offer(
+			VoiceLedger.Reason.MOOD,
+			"You have just become " + mood.name()
+				+ (mood.reason().isEmpty() ? "" : " because " + mood.reason()) + ".",
+			villager, player
+		);
 	}
 
 	/** "a zombie", "a player", "an iron golem": a type, never a name. */

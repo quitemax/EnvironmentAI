@@ -122,7 +122,38 @@ conversation. The server owns the state; the client only frames the shot and sho
   and blended from the normal pose each frame so a quick exit does not snap. A client mixin on
   `Camera.alignWithEntity` applies it; `detached` is set so the player's own model is drawn.
 
-## Why a villager might speak first (proposals, not built)
+## The conversation look (built)
+
+- **Framing:** the camera sits just behind and well to the right of the player, slightly above, so
+  the player's head is out of the way; the aim point is nudged so the villager sits in the right
+  third of the frame with the player balancing the left.
+- **Zoom:** the field of view narrows to 70% at full blend (a mixin on `Camera.calculateFov`),
+  eased with the same curve as the move.
+- **Film frame:** black letterbox bars slide in and out with the shot (13% of the height each),
+  with soft shading toward the edges. The screen stays open through the ease-out so the bars slide
+  away with the camera instead of vanishing.
+- **Status panel:** name and level, mood with its reason (colour-coded), what it is doing, health,
+  how it feels about you (from vanilla gossip) and its temperament. The server sends it on start and
+  whenever it changes.
+- **Background blur: not done, deliberately.** The vanilla blur is a whole-frame effect, so it would
+  blur the villager along with the background. Isolating the villager needs a depth-aware
+  post-process; the edge shading is the cheap stand-in.
+
+## Speaking first (built, with a gate)
+
+Villagers can now open a conversation unprompted, for four reasons: **mood** (a strong change),
+**warning** (a hostile comes close while a player is near), **thanks** (the player cured a zombie
+villager) and **greeting** (a player arrives, or returns after two game days).
+
+The risk was a village talking over itself: one event is witnessed by every villager. So every
+attempt goes through one gate (`VoiceLedger`), which allows at most one unprompted line per player
+every 20 seconds and, separately, one per reason every 1 to 5 minutes. The first villager to ask
+wins; the speaker is chosen as the nearest villager within earshot and in line of sight, and is told
+how many neighbours share the feeling so it speaks for all of them ("we"). Nothing is said during a
+conversation the player is already having. The gate is pure and was tested outside the game: twelve
+villagers wanting to thank one player produce one thanks.
+
+## Reasons a villager might speak first (the original proposals)
 
 Ambient chatter exists already but only reacts to a *mood change*. Other honest reasons, each of
 which the villager already has the facts for:
