@@ -41,3 +41,22 @@ A changelog of notable decisions, changes, and milestones for EnvironmentAI. Unl
   classes with no Mixin errors.
 - Removed the leftover `ExampleMixin`/`ExampleClientMixin` template boilerplate and the now-empty
   client mixin config, since this feature is entirely server/common-side.
+
+## 2026-10-11 — Tracker leak, per-tier pools, local tooling, debug datapack
+
+- **`MobTracker` leak fixed.** Mobs were tracked from the `registerGoals` mixin and never untracked,
+  so despawned and chunk-unloaded mobs stayed referenced in static maps forever. Tracking now follows
+  `ServerEntityEvents.ENTITY_LOAD` / `ENTITY_UNLOAD`, which also stops tracking mobs that were
+  constructed but never added to a level. Unload removes by `(uuid, instance)` so a chunk reload that
+  re-registers the same UUID can't be evicted by the old instance's unload.
+- **Executor pools are per tier, not per provider type.** With both tiers `LOCAL` they previously
+  shared one pool, letting a slow System 2 call starve System 1. Config fields
+  `localExecutorThreads`/`cloudExecutorThreads` became `system1ExecutorThreads`/`system2ExecutorThreads`
+  (old keys are ignored; defaults 4 and 2).
+- **Local model setup.** Two native Ollama instances (one per tier) via `tools/ollama/start-instances.ps1`.
+  The machine's `:11434` is held by a WSL/Docker Ollama (older version), which is left untouched.
+  The target GPU has 8 GB VRAM, so a 3B + 8B pair already runs close to the limit.
+- **Debug datapack** (`testing/datapack/environmentai_debug`): twelve scenarios covering each action
+  plus species coverage, System 2 divergence and scheduler load. Note that `IDLE` deliberately has
+  no goal flags and so lets vanilla behaviour continue; it is also the provider-failure fallback.
+

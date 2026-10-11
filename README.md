@@ -71,7 +71,26 @@ can independently be `LOCAL` or `CLOUD`.
   with the configured `model` pulled.
 
 Cadence/throttling fields (`tickInterval`, `minSpacingLocalMs`, `minSpacingCloudMs` for System 1;
-`debounceMs`, `cooldownMs` for System 2) are also editable in the same file.
+`debounceMs`, `cooldownMs` for System 2) are also editable in the same file. Each tier has its own
+model-call thread pool (`system1ExecutorThreads`, `system2ExecutorThreads`), so a slow System 2
+call can never starve System 1.
+
+### Two local Ollama instances
+
+`tools/ollama/start-instances.ps1` starts one native Ollama per tier (System 1 on `:11435`,
+System 2 on `:11436`; `:11434` is left alone) with `OLLAMA_KEEP_ALIVE=-1`, `OLLAMA_NUM_PARALLEL=4`
+and `OLLAMA_MAX_LOADED_MODELS=1`. `-Pull` also downloads the default models (`llama3.2:3b`,
+`llama3.1:8b`); `-Stop` shuts the instances down. Point each tier at its instance with
+`endpointOverride` (`http://127.0.0.1:11435` / `http://127.0.0.1:11436`). Keep-alive matters: with
+Ollama's default 5 minute unload, the first call after a quiet spell can exceed `timeoutMs` and
+silently fall back.
+
+### Debug scenarios
+
+`testing/datapack/environmentai_debug` is a datapack of reproducible test environments, one per
+action or behaviour. Install it with `tools/install-datapack.ps1 -World <name>`, then in-game:
+`/reload`, `/function eai:setup`, `/function eai:help`. See
+[`testing/README.md`](testing/README.md).
 
 ### Debugging
 
@@ -91,10 +110,12 @@ src/main/java/com/quitemax/environmentai/
   ai/narrative/             NarrativeState (System 2's output) + codec + parser
   ai/state/                 MobAiState (the per-mob attachment) + its AttachmentType registration
   ai/prompt/                System1PromptBuilder / System2PromptBuilder
-  ai/scheduling/            AiExecutors, MobTracker, System1Scheduler, System2TriggerManager, AiService
+  ai/scheduling/            AiExecutors (per-tier pools), MobTracker (load/unload-scoped), System1Scheduler, System2TriggerManager, AiService
   goal/                     the six discrete-action Goal implementations
   mixin/                    goal-injection and target-change-detection mixins (server/common only)
 src/client/java/com/quitemax/environmentai/client/   client entrypoint (currently no client-side logic)
+tools/                      dev scripts: Ollama instance launcher, datapack installer
+testing/datapack/           debug-scenario datapack
 ```
 
 This mod uses Loom's split source sets (`splitEnvironmentSourceSets`), so common code lives under
