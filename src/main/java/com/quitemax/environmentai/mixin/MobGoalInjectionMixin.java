@@ -1,7 +1,6 @@
 package com.quitemax.environmentai.mixin;
 
 import com.quitemax.environmentai.EnvironmentAI;
-import com.quitemax.environmentai.ai.scheduling.MobTracker;
 import com.quitemax.environmentai.ai.state.ModAttachments;
 import com.quitemax.environmentai.goal.ApproachActionGoal;
 import com.quitemax.environmentai.goal.AttackActionGoal;
@@ -52,7 +51,6 @@ public abstract class MobGoalInjectionMixin {
 		this.goalSelector.addGoal(SYSTEM1_GOAL_PRIORITY, new WanderActionGoal(pathfinderMob));
 		this.goalSelector.addGoal(SYSTEM1_GOAL_PRIORITY, new IdleActionGoal(pathfinderMob));
 
-		MobTracker.track(self);
 		self.getAttachedOrCreate(ModAttachments.MOB_AI_STATE);
 
 		EnvironmentAI.LOGGER.debug(
