@@ -77,13 +77,21 @@ call can never starve System 1.
 
 ### Two local Ollama instances
 
-`tools/ollama/start-instances.ps1` starts one native Ollama per tier (System 1 on `:11435`,
-System 2 on `:11436`; `:11434` is left alone) with `OLLAMA_KEEP_ALIVE=-1`, `OLLAMA_NUM_PARALLEL=4`
-and `OLLAMA_MAX_LOADED_MODELS=1`. `-Pull` also downloads the default models (`llama3.2:3b`,
-`llama3.1:8b`); `-Stop` shuts the instances down. Point each tier at its instance with
-`endpointOverride` (`http://127.0.0.1:11435` / `http://127.0.0.1:11436`). Keep-alive matters: with
-Ollama's default 5 minute unload, the first call after a quiet spell can exceed `timeoutMs` and
-silently fall back.
+`tools/ollama/start-instances.ps1` starts native Ollama instances (`:11434` is left alone) with
+`OLLAMA_KEEP_ALIVE=-1`, per-instance context length and parallelism, flash attention and a q8_0 KV
+cache. Modes:
+
+- **default**: one instance per tier (System 1 on `:11435`, System 2 on `:11436`).
+- **`-Shared`**: one instance on `:11435` serving both tiers. Prefer this when both tiers use the
+  same model: two processes time-slice the GPU against each other (measured: System 1 median
+  261 ms with System 2 idle, 1088 ms while a System 2 call ran) and each holds its own weights.
+  Point both tiers' `endpointOverride` at `http://127.0.0.1:11435`.
+- **`-Warm`**: load each tier's model and keep it resident. A cold load takes seconds, longer than
+  `timeoutMs`, so the first calls would otherwise silently fall back.
+- **`-Pull`** downloads the models; **`-Stop`** shuts everything down (including the runner child).
+
+Keep-alive matters: with Ollama's default 5 minute unload, the first call after a quiet spell can
+exceed `timeoutMs` and silently fall back.
 
 ### Debug scenarios
 
@@ -111,8 +119,8 @@ src/main/java/com/quitemax/environmentai/
   ai/state/                 MobAiState (the per-mob attachment) + its AttachmentType registration
   ai/prompt/                System1PromptBuilder / System2PromptBuilder
   ai/scheduling/            AiExecutors (per-tier pools), MobTracker (load/unload-scoped), System1Scheduler, System2TriggerManager, AiService
-  goal/                     the six discrete-action Goal implementations
-  mixin/                    goal-injection and target-change-detection mixins (server/common only)
+  goal/                     the six discrete-action Goals + SystemGoals (installs them on entity load)
+  mixin/                    target-change-detection mixin (server/common only)
 src/client/java/com/quitemax/environmentai/client/   client entrypoint (currently no client-side logic)
 tools/                      dev scripts: Ollama instance launcher, datapack installer
 testing/datapack/           debug-scenario datapack

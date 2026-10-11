@@ -60,3 +60,41 @@ A changelog of notable decisions, changes, and milestones for EnvironmentAI. Unl
   plus species coverage, System 2 divergence and scheduler load. Note that `IDLE` deliberately has
   no goal flags and so lets vanilla behaviour continue; it is also the provider-failure fallback.
 
+## 2026-10-11 — Evidence-driven tuning pass (evening)
+
+Driven by the new JSONL logs rather than guesswork. Measured problems and what was done:
+
+- System 1 was overloaded and making no-op decisions with no target: added a skip/rule/model
+  routing, a global in-flight cap and an `activeRadiusBlocks` gate.
+- Prompts: the target shared the word `CRITICAL` with the mob's own health and the model fled from
+  nearly-dead targets; WANDER was chosen 21% of the time with a target. Separate vocabularies and a
+  restricted action list per context fixed both. A scripted edit that only half-applied was caught
+  by the log (the new text was absent) and redone with verification.
+- System 2 had no cap (6 concurrent calls, 16 s each) and its answers slowed System 1 4x. Capped at
+  1 in flight, oldest trigger first. Swapped to `llama3.2:3b` (median 2.1 s -> 1.2 s), which exposed
+  runaway JSON output (one 17.9 s call at the 512-token cap), so `maxTokens` is now 160.
+- Critical-health flee became a rule with hysteresis, because the model chose ATTACK about 40% of
+  the time at critical health even with the hold in place. The 2.5 s FLEE hold remains for the
+  non-critical case.
+- Surroundings (type and distance of nearby creatures) added to both prompts. A locale bug printed
+  `3,2 blocks`; fixed with `Locale.ROOT`.
+- Both tiers can share one Ollama instance (`-Shared`): synthetic check showed System 1 at 248 ms
+  alone and 308 ms with a System 2 call running, versus 261 ms and 1088 ms across two instances.
+
+## 2026-10-11 — The action goals were never installed on zombies, spiders or skeletons
+
+A playtest showed a zombie whose logged action was FLEE walking straight at the player. The logs
+agreed (target distance shrinking during `critical_flee_sustained`). Root cause: the goals were
+installed by a mixin on `Mob.registerGoals`, but `Zombie`, `Spider` and `AbstractSkeleton` override
+`registerGoals` without calling `super`, so the hook never ran for them. Every earlier "the zombies
+behave fine" observation was vanilla behaviour plus logged decisions that had no effect. The earlier
+smoke test only proved the mixin *applied* cleanly, not that it *fired* on the mobs that matter.
+
+- Goals are now installed from `ServerEntityEvents.ENTITY_LOAD` via `SystemGoals.install`
+  (public `Mob.getGoalSelector()`, idempotent); the injection mixin is removed.
+- Because the goals now genuinely run, `AttackActionGoal` is guarded: it only engages for mobs with
+  an `ATTACK_DAMAGE` attribute (creepers and witches would otherwise throw in `doHurtTarget`) and
+  leaves `RangedAttackMob`s (skeletons, witches, pillagers, drowned) to their vanilla attack goals.
+- All behavioural conclusions drawn from sessions before this change describe the model's
+  *decisions*, not mob behaviour.
+

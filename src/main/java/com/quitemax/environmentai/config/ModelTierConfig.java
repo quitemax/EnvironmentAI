@@ -25,6 +25,19 @@ public class ModelTierConfig {
 	/** Mobs farther than this from every player are not given decisions or narrative refreshes (0 or less = no limit). */
 	public double activeRadiusBlocks = 48.0;
 	/**
+	 * Radius within which other creatures are listed in the prompt (type and distance, nearest
+	 * first). 0 or less disables it.
+	 */
+	public double awarenessRadiusBlocks = 12.0;
+	/**
+	 * System 1 survival reflex: a mob whose health fraction drops below {@code fleeEnterHealth}
+	 * flees from a dangerous target, and keeps fleeing until it recovers past {@code fleeExitHealth}.
+	 * The gap between the two is the hysteresis. Unlike the prompt's CRITICAL label (below 25%),
+	 * these are tuned for how a player perceives "nearly dead", not for what a model understands.
+	 */
+	public float fleeEnterHealth = 0.40f;
+	public float fleeExitHealth = 0.55f;
+	/**
 	 * Global cap on simultaneously outstanding calls for this tier. Without it, a crowd of mobs all
 	 * dispatching at once queues behind the model and every answer arrives stale. 0 (the default,
 	 * also what an existing config file without this field gets) means the tier's own default:
@@ -52,7 +65,10 @@ public class ModelTierConfig {
 		config.provider = ProviderType.CLOUD;
 		config.model = "claude-sonnet-5";
 		config.temperature = 0.8;
-		config.maxTokens = 512;
+		// A narrative reply is ~50 tokens. A small model can run on appending junk JSON keys until
+		// the cap (one 17.9 s call hit 512), so keep the cap close to the real size; a truncated
+		// reply fails to parse and the mob simply keeps its previous narrative.
+		config.maxTokens = 160;
 		return config;
 	}
 }

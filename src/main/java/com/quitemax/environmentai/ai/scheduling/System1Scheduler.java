@@ -15,6 +15,7 @@ import com.quitemax.environmentai.config.ProviderType;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 
 import java.util.ArrayList;
@@ -58,6 +59,20 @@ public class System1Scheduler {
 
 	/** With no target there is nothing to react to, so let vanilla behaviour run. */
 	private static final MobAction NO_TARGET_ACTION = MobAction.IDLE;
+
+	/**
+	 * Survival reflex: a wounded mob flees from a target that is still dangerous. This is a rule,
+	 * not a model decision, because the 3B model answered ATTACK at critical health about 40% of the
+	 * time even when told to flee. Health thresholds are configurable ({@code fleeEnterHealth} /
+	 * {@code fleeExitHealth}); it is sustained until health recovers past the exit value or the
+	 * target is beyond {@code EXIT_RANGE}, and the gap between each pair is the hysteresis.
+	 */
+	private static final float CRITICAL_FLEE_ENTER_RANGE = 16.0f;
+	private static final float CRITICAL_FLEE_EXIT_RANGE = 24.0f;
+	/** While a rule holds a mob in FLEE, log its situation at most this often, to verify it works. */
+	private static final long RULE_HEARTBEAT_MS = 1_000;
+	/** A target at or below this health fraction is worth finishing rather than fleeing from. */
+	private static final float TARGET_NEARLY_DEAD_FRACTION = 0.25f;
 
 	private final ModelProvider provider;
 	private final ModelTierConfig config;
@@ -130,7 +145,15 @@ public class System1Scheduler {
 		}
 
 		if (mob.getTarget() == null) {
-			applyNoTargetRule(mob, state);
+			applyRule(mob, state, NO_TARGET_ACTION, "no_target");
+			return false;
+		}
+
+		if (shouldFleeByRule(mob, state)) {
+			applyRule(mob, state, MobAction.FLEE, "critical_flee");
+			logRuleHeartbeat(mob, state, MobAction.FLEE, "critical_flee_sustained");
+			// The model path normally raises these escalations, and this mob no longer goes through it.
+			checkForSignificantEvent(mob, state);
 			return false;
 		}
 
@@ -143,17 +166,56 @@ public class System1Scheduler {
 	 * Only writes state (and a log row) on a change: repeatedly "re-applying" the same action would
 	 * grow the same-action streak and trip the stuck-action escalation to System 2 for no reason.
 	 */
-	private void applyNoTargetRule(Mob mob, MobAiState state) {
-		if (state.currentAction() == NO_TARGET_ACTION) {
+	private void applyRule(Mob mob, MobAiState state, MobAction action, String reason) {
+		if (state.currentAction() == action) {
 			return;
 		}
 		JsonObject row = trainingLogger != null
 			? trainingLogger.snapshot(mob, state, null, System.currentTimeMillis())
 			: null;
-		state.updateAction(NO_TARGET_ACTION);
+		state.updateAction(action);
 		if (row != null) {
-			trainingLogger.recordRule(row, NO_TARGET_ACTION, "no_target");
+			state.markRuleLogged(System.currentTimeMillis());
+			trainingLogger.recordRule(row, action, reason);
 		}
+	}
+
+	/**
+	 * Rules only log on a change, which leaves a sustained flee invisible: nothing in the log says
+	 * whether the mob actually got away. This writes the live situation (including target distance)
+	 * about once a second while a rule is holding the mob in an action.
+	 */
+	private void logRuleHeartbeat(Mob mob, MobAiState state, MobAction action, String reason) {
+		if (trainingLogger == null) {
+			return;
+		}
+		long now = System.currentTimeMillis();
+		if (now - state.lastRuleLogMs() < RULE_HEARTBEAT_MS) {
+			return;
+		}
+		state.markRuleLogged(now);
+		trainingLogger.recordRule(trainingLogger.snapshot(mob, state, null, now), action, reason);
+	}
+
+	/**
+	 * True if the critical-health flee reflex applies right now. Needs a target; sustaining uses
+	 * wider thresholds than entering so the mob doesn't flicker at the boundary.
+	 */
+	private boolean shouldFleeByRule(Mob mob, MobAiState state) {
+		LivingEntity target = mob.getTarget();
+		if (target == null) {
+			return false;
+		}
+		if (target.getHealth() / target.getMaxHealth() <= TARGET_NEARLY_DEAD_FRACTION) {
+			return false;
+		}
+
+		float health = mob.getHealth() / mob.getMaxHealth();
+		float distance = mob.distanceTo(target);
+		if (state.currentAction() == MobAction.FLEE) {
+			return health < config.fleeExitHealth && distance <= CRITICAL_FLEE_EXIT_RANGE;
+		}
+		return health < config.fleeEnterHealth && distance <= CRITICAL_FLEE_ENTER_RANGE;
 	}
 
 	private void dispatch(Mob mob, MobAiState state, long now) {
@@ -215,7 +277,13 @@ public class System1Scheduler {
 
 		MobAction parsed = ActionParser.tryParse(response, EnvironmentAI.LOGGER).orElse(null);
 		MobAction newAction = parsed != null ? parsed : state.currentAction();
-		if (holdFlee(state, newAction, appliedAt)) {
+		if (newAction != MobAction.FLEE && shouldFleeByRule(mob, state)) {
+			// The mob became critical while this call was in flight; the rule wins over the answer.
+			newAction = MobAction.FLEE;
+			if (trainingRow != null) {
+				trainingRow.addProperty("override", "critical_flee");
+			}
+		} else if (holdFlee(state, newAction, appliedAt)) {
 			newAction = MobAction.FLEE;
 			if (trainingRow != null) {
 				// The raw response still records what the model said; this records why it wasn't applied.

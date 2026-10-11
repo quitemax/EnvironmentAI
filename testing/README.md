@@ -27,11 +27,12 @@ raw model response, whether it parsed, and the action applied.
 
 Each row has a `source`: `model` (the model answered; the only rows usable as training labels),
 `error` (call failed or timed out, mob kept its action) or `rule` (decided without a model call,
-currently only `no_target`, logged on change). Timing is split into `response_ms` (dispatch until
+logged on change: `no_target` sets IDLE; `critical_flee` makes a critically wounded mob flee from a
+target that is still dangerous, with hysteresis). Timing is split into `response_ms` (dispatch until
 the answer arrived) and `apply_delay_ms` (answer arrived until the server thread applied it), and
 `in_flight_at_dispatch` shows how many calls were outstanding, the direct measure of queueing.
-An `override` field (currently `flee_hold`) means the model's answer was not applied; `raw_response`
-still records what it said.
+An `override` field (`flee_hold` or `critical_flee`) means the model's answer was not applied;
+`raw_response` still records what it said, so use it, not `action`, as the model's label.
 
 System 2 calls go to a sibling file with the same timestamp, `system2-<timestamp>.jsonl`: one row
 per narrative refresh with the `trigger`, `trigger_wait_ms` (debounce + cooldown wait), the

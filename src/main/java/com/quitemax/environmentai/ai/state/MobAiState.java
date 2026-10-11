@@ -22,6 +22,7 @@ public final class MobAiState {
 	private MobAction currentAction;
 
 	private long actionChangedAtMs = 0L;
+	private long lastRuleLogMs = 0L;
 	private int consecutiveSameActionTicks = 0;
 	private boolean stuckEscalated = false;
 	private boolean nearDeathEscalated = false;
@@ -64,6 +65,15 @@ public final class MobAiState {
 			actionChangedAtMs = System.currentTimeMillis();
 		}
 		this.currentAction = action;
+	}
+
+	/** When a rule decision for this mob was last written to the training log (throttles heartbeats). */
+	public long lastRuleLogMs() {
+		return lastRuleLogMs;
+	}
+
+	public void markRuleLogged(long now) {
+		this.lastRuleLogMs = now;
 	}
 
 	/** Wall-clock time the current action was last switched to (0 if never changed this session). */
