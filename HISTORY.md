@@ -196,3 +196,34 @@ smoke test only proved the mixin *applied* cleanly, not that it *fired* on the m
   `mine_stone` to `enter_the_end`, the dragon is in the `end` tab, and the blaze rods and pearls
   needed on the way are not on the story path. Advancement completion has no Fabric event.
 
+## 2026-10-11 — Player state and the narrator (N0, N1)
+
+- Built the first two steps of the narrator/director plan: a 14-goal progress ladder keyed to real
+  advancements (with the nether-tab gaps filled by hand), a rule-derived player state, and a comic
+  caption narrator with four voices, a rate gate, and hand-written fallbacks.
+- Defaults as decided: noir voice, hints on; both changeable at runtime. The narrator sees every
+  player and tells the others about big moments, without names unless configured.
+- The model is only a phraser and is checked. Testing it on the real prompt found it assigned
+  genders to the player, failed to name an achievement (a diamond described as "dull grey stone"),
+  and got cut off mid-sentence by the length cap in 3 of 16 samples. The first was fixed in the
+  prompt (0 of 16 afterwards); the other two are fixed in code (a caption is checked against the fact
+  it was given, and a cut-off reply is rejected rather than trimmed, after trimming at a comma was
+  found to leave "a lone." as a caption).
+- Wrote down the village growth, trade route and disaster ideas for later
+  (`docs/VILLAGE_GROWTH.md`), anchored to what the engine already has (POIs, templates, sieges,
+  raids) and explicit about what must exist first.
+
+## 2026-10-12 — Director v1 (N2) and a mood that follows the conversation
+
+- Added the director's tension budget and paced hints (`Director`): pressure from damage and nearby
+  hostiles, decay over time, and a hint allowed only once the player is at ease and has stalled for a
+  slack that grows with the run. After a spike passes it adds a one-line "relief" caption. Still only
+  narration; the numbers are untried in play.
+- During a conversation the villager's shown mood now follows what is said: a warm reply from a
+  shaken villager records a reassurance, which settles fear and anger left over from earlier events
+  (never a raid, a death it witnessed, or a hostile actually nearby), and the status panel is pushed
+  right after the reply instead of at the next periodic refresh.
+- Looked through the logs for the machine freeze after the last playtest: the game itself shows no
+  errors, a handful of small model calls, millisecond latencies and a clean exit at 00:01:37; the
+  hard reset (Kernel-Power 41) came at 00:06, after the game had closed, so the cause is outside the
+  mod.

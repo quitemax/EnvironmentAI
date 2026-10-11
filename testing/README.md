@@ -73,6 +73,18 @@ Gear for intimidation tests: `/function eai:gear/netherite` (or `diamond`, `iron
 you; then run `intimidation` and check each mob with `/environmentai inspect`, which shows archetype
 and `[threat X vs nerve Y]`. Rows from this rule have `rule: intimidated`.
 
+## Narrator
+
+| Command | Does |
+|---|---|
+| `/environmentai narrate <kind>` | Shows a caption of that kind now, skipping the rate gate. Kinds: `stage`, `near_death`, `death`, `hunted`, `dimension`, `dawn`, `quiet`, `elsewhere`. |
+| `/environmentai inspect <your name>` | Your derived state, progress (of 14 goals) and next goal. |
+| `/environmentai narrator style <name>` | Switches the voice (saved). |
+| `/environmentai narrator hints <level>` | `off`, `narration` or `hints` (saved). |
+
+`quiet` is the one that carries a hint, and only when the level is `hints`. Captions about others
+(`elsewhere`) are best tested with two players.
+
 ## Notes
 
 - `IDLE` registers no goal flags, so it lets vanilla goals keep running; it is also the fallback

@@ -1,11 +1,14 @@
 package com.quitemax.environmentai.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import com.quitemax.environmentai.EnvironmentAI;
 import com.quitemax.environmentai.network.ConversationPayloads;
+import com.quitemax.environmentai.network.NarrationPayloads;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -33,6 +36,10 @@ public class EnvironmentAIClient implements ClientModInitializer {
 				onTalkKey(client);
 			}
 		});
+
+		HudElementRegistry.addLast(EnvironmentAI.id("narration"), new NarrationHud());
+		ClientPlayNetworking.registerGlobalReceiver(NarrationPayloads.Caption.TYPE, (payload, context) ->
+			NarrationHud.show(payload.text(), payload.style()));
 
 		ClientPlayNetworking.registerGlobalReceiver(ConversationPayloads.Started.TYPE, (payload, context) -> {
 			ConversationClient.begin(payload.villagerId(), payload.name());

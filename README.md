@@ -151,6 +151,21 @@ a raid. It colours what they say, and a strong mood change can make one exclaim 
 they move. Your text is written to `training/villager-<timestamp>.jsonl` locally. See
 [`docs/VILLAGERS.md`](docs/VILLAGERS.md) for the design and the roadmap beyond this.
 
+### The narrator
+
+A comic-book narrator comments on what happens to you in caption boxes in the corner of the screen:
+reaching a goal on the way to the dragon, a near miss, a death, being hunted at night, entering
+another dimension, surviving until dawn, a long quiet stretch. It watches **every** player, and
+tells the others about a player's big moments ("Elsewhere, another traveler fell...").
+
+- **Voice:** `/environmentai narrator style <noir|pulp|deadpan|documentary>`. Noir is the default.
+- **How much:** `/environmentai narrator hints <off|narration|hints>`. `hints` (the default) adds
+  oblique nudges toward the next goal when you have stalled; `narration` only comments; `off` is
+  silent. Both settings are saved to `config/environmentai.json`.
+- It is rule-driven and rate-limited, never speaks during a villager conversation, and falls back
+  to hand-written captions if the model is slow or unavailable. See
+  [`docs/NARRATOR_DIRECTOR.md`](docs/NARRATOR_DIRECTOR.md).
+
 ### Reading the logs
 
 `tools/analyze-log.ps1` summarises the newest `training/system1-*.jsonl` and its System 2 sibling:

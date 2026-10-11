@@ -10,7 +10,14 @@ import com.quitemax.environmentai.ai.dialogue.VillagerContext;
 import com.quitemax.environmentai.ai.perception.TargetAssessment;
 import com.quitemax.environmentai.ai.state.MobAiState;
 import com.quitemax.environmentai.ai.state.ModAttachments;
+import com.quitemax.environmentai.EnvironmentAI;
+import com.quitemax.environmentai.ai.story.NarrationLedger;
+import com.quitemax.environmentai.ai.story.StoryTracker;
+import com.quitemax.environmentai.config.ConfigManager;
+import com.quitemax.environmentai.config.DirectorIntensity;
+import com.quitemax.environmentai.config.NarratorStyle;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
@@ -33,11 +40,33 @@ public final class EnvironmentAiCommand {
 	private EnvironmentAiCommand() {
 	}
 
-	public static void register(CommandDispatcher<CommandSourceStack> dispatcher, DialogueService dialogue) {
+	public static void register(
+		CommandDispatcher<CommandSourceStack> dispatcher, DialogueService dialogue, StoryTracker story
+	) {
 		dispatcher.register(Commands.literal("environmentai")
 			.then(Commands.literal("inspect")
 				.then(Commands.argument("target", EntityArgument.entity())
-					.executes(EnvironmentAiCommand::inspect))));
+					.executes(context -> inspect(context, story))))
+			// Debug: produce a caption of a given kind now, skipping the gate.
+			.then(Commands.literal("narrate")
+				.then(Commands.argument("kind", StringArgumentType.word())
+					.suggests((context, builder) -> SharedSuggestionProvider.suggest(
+						java.util.Arrays.stream(NarrationLedger.Kind.values())
+							.map(kind -> kind.name().toLowerCase(Locale.ROOT)), builder))
+					.executes(context -> narrate(context, story))))
+			.then(Commands.literal("narrator")
+				.then(Commands.literal("style")
+					.then(Commands.argument("style", StringArgumentType.word())
+						.suggests((context, builder) -> SharedSuggestionProvider.suggest(
+							java.util.Arrays.stream(NarratorStyle.values())
+								.map(style -> style.name().toLowerCase(Locale.ROOT)), builder))
+						.executes(EnvironmentAiCommand::setStyle)))
+				.then(Commands.literal("hints")
+					.then(Commands.argument("level", StringArgumentType.word())
+						.suggests((context, builder) -> SharedSuggestionProvider.suggest(
+							java.util.Arrays.stream(DirectorIntensity.values())
+								.map(level -> level.name().toLowerCase(Locale.ROOT)), builder))
+						.executes(EnvironmentAiCommand::setIntensity)))));
 
 		dispatcher.register(Commands.literal("talk")
 			.then(Commands.argument("message", StringArgumentType.greedyString())
@@ -55,8 +84,51 @@ public final class EnvironmentAiCommand {
 		return 1;
 	}
 
-	private static int inspect(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+	private static int narrate(CommandContext<CommandSourceStack> context, StoryTracker story)
+		throws CommandSyntaxException {
+		ServerPlayer player = context.getSource().getPlayerOrException();
+		String kind = StringArgumentType.getString(context, "kind");
+		if (!story.narrateNow(player, kind)) {
+			context.getSource().sendFailure(Component.literal("Unknown kind: " + kind));
+			return 0;
+		}
+		return 1;
+	}
+
+	private static int setStyle(CommandContext<CommandSourceStack> context) {
+		String name = StringArgumentType.getString(context, "style");
+		NarratorStyle style = NarratorStyle.parse(name);
+		if (style == null) {
+			context.getSource().sendFailure(Component.literal("Unknown style: " + name));
+			return 0;
+		}
+		EnvironmentAI.config().narratorStyle = style;
+		ConfigManager.save(EnvironmentAI.config(), EnvironmentAI.LOGGER);
+		context.getSource().sendSuccess(() -> Component.literal("Narrator style: " + style.name().toLowerCase(Locale.ROOT)), true);
+		return 1;
+	}
+
+	private static int setIntensity(CommandContext<CommandSourceStack> context) {
+		String name = StringArgumentType.getString(context, "level");
+		DirectorIntensity level = DirectorIntensity.parse(name);
+		if (level == null) {
+			context.getSource().sendFailure(Component.literal("Unknown level: " + name + " (off, narration, hints)"));
+			return 0;
+		}
+		EnvironmentAI.config().directorIntensity = level;
+		ConfigManager.save(EnvironmentAI.config(), EnvironmentAI.LOGGER);
+		context.getSource().sendSuccess(() -> Component.literal("Narrator level: " + level.name().toLowerCase(Locale.ROOT)), true);
+		return 1;
+	}
+
+	private static int inspect(CommandContext<CommandSourceStack> context, StoryTracker story)
+		throws CommandSyntaxException {
 		Entity target = EntityArgument.getEntity(context, "target");
+		if (target instanceof ServerPlayer player) {
+			String report = "[player] " + story.describe(player);
+			context.getSource().sendSuccess(() -> Component.literal(report), false);
+			return 1;
+		}
 		if (!(target instanceof Mob mob)) {
 			context.getSource().sendFailure(Component.literal("Target is not a mob."));
 			return 0;

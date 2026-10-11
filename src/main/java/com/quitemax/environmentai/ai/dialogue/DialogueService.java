@@ -11,6 +11,8 @@ import com.quitemax.environmentai.ai.state.ModAttachments;
 import com.quitemax.environmentai.ai.state.VillagerState;
 import com.quitemax.environmentai.ai.training.TrainingDataLogger;
 import com.quitemax.environmentai.ai.util.JsonExtraction;
+import com.quitemax.environmentai.ai.villager.VillagerMood;
+import com.quitemax.environmentai.ai.villager.VillagerMoodService;
 import com.quitemax.environmentai.config.ModelTierConfig;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -288,6 +290,10 @@ public final class DialogueService {
 				reply = "Hrm.";
 			}
 			nudged = nudge(villager, player, state, feeling);
+				if (feeling.equals("warm") && VillagerMood.canBeReassured(state.mood())) {
+					VillagerMoodService.recordExternal(
+						villager, VillagerMood.REASSURED, "was calmed by a traveler's kind words");
+				}
 			state.remember(player.getUUID(), new VillagerState.Exchange(playerText, reply));
 		}
 

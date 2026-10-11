@@ -43,6 +43,11 @@ public final class ConfigManager {
 		return config;
 	}
 
+	/** Writes the current in-memory config back to {@code config/environmentai.json}. */
+	public static void save(EnvironmentAIConfig config, Logger logger) {
+		save(config, FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME), logger);
+	}
+
 	private static void save(EnvironmentAIConfig config, Path path, Logger logger) {
 		try {
 			Files.createDirectories(path.getParent());

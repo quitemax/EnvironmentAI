@@ -5,6 +5,8 @@ import com.quitemax.environmentai.ai.dialogue.ConversationManager;
 import com.quitemax.environmentai.ai.dialogue.DialogueService;
 import com.quitemax.environmentai.ai.provider.ModelProvider;
 import com.quitemax.environmentai.ai.provider.ProviderFactory;
+import com.quitemax.environmentai.ai.story.NarratorService;
+import com.quitemax.environmentai.ai.story.StoryTracker;
 import com.quitemax.environmentai.ai.training.TrainingDataLogger;
 import com.quitemax.environmentai.ai.villager.ProactiveVoice;
 import com.quitemax.environmentai.ai.villager.VillagerMoodService;
@@ -23,6 +25,7 @@ public final class AiService {
 	private final System2TriggerManager system2TriggerManager;
 	private final DialogueService dialogueService;
 	private final ConversationManager conversationManager;
+	private final StoryTracker storyTracker;
 	/** Null when villager moods are disabled. */
 	private final VillagerMoodService moodService;
 
@@ -46,6 +49,9 @@ public final class AiService {
 		TrainingDataLogger villagerLogger = createLogger(config, "villager", config.system3, stamp);
 		this.dialogueService = new DialogueService(system3Provider, config.system3, villagerLogger);
 		this.conversationManager = new ConversationManager(dialogueService);
+		this.storyTracker = new StoryTracker(new NarratorService(
+			system3Provider, config.system3, createLogger(config, "narrator", config.system3, stamp)
+		));
 		ProactiveVoice voice = new ProactiveVoice(dialogueService, config.villagerAmbientChatter);
 		this.moodService = config.villagerMoodEnabled
 			? new VillagerMoodService(voice, villagerLogger)
@@ -80,6 +86,10 @@ public final class AiService {
 		return dialogueService;
 	}
 
+	public StoryTracker story() {
+		return storyTracker;
+	}
+
 	public void start() {
 		MobTracker.register();
 		system1Scheduler.register();
@@ -88,6 +98,7 @@ public final class AiService {
 			moodService.register();
 		}
 		conversationManager.register();
+		storyTracker.register();
 
 		EnvironmentAI.LOGGER.info("EnvironmentAI dual-process mob AI started");
 	}

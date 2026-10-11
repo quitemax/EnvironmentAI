@@ -19,6 +19,8 @@ public final class VillagerMood {
 	public static final String CURED = "cured";
 	public static final String THREAT = "threat";
 	public static final String THREATENED = "threatened";
+	/** A warm exchange with a player: eases fear and anger left over from earlier events. */
+	public static final String REASSURED = "reassured";
 
 	public static final String CALM = "calm";
 	public static final String CONTENT = "content";
@@ -33,6 +35,7 @@ public final class VillagerMood {
 	private static final long GRIEF_WINDOW = 6_000;
 	private static final long ANGER_WINDOW = 6_000;
 	private static final long CONTENT_WINDOW = 2_400;
+	private static final long REASSURED_WINDOW = 2_400;
 
 	public record Mood(String name, String reason) {
 	}
@@ -41,6 +44,11 @@ public final class VillagerMood {
 	}
 
 	/** Whether a mood is strong enough that the villager might exclaim about it unprompted. */
+	/** Whether a warm reply should record a reassurance: only a mood that kindness can ease. */
+	public static boolean canBeReassured(String mood) {
+		return mood.equals(UNEASY) || mood.equals(AFRAID) || mood.equals(ANGRY);
+	}
+
 	public static boolean isVocal(String mood) {
 		return mood.equals(AFRAID) || mood.equals(TERRIFIED) || mood.equals(GRIEVING) || mood.equals(ANGRY);
 	}
@@ -62,6 +70,12 @@ public final class VillagerMood {
 		}
 		if (state.hasRecent(GOLEM_LOST, now, GRIEF_WINDOW)) {
 			return new Mood(AFRAID, "the village's iron golem was destroyed");
+		}
+		// Kind words settle a shaken villager, but never hide a danger that is actually present.
+		if (!hostileNear && state.hasRecent(REASSURED, now, REASSURED_WINDOW)
+			&& (state.hasRecent(HURT_BY_PLAYER, now, ANGER_WINDOW) || state.hasRecent(THREATENED, now, HURT_WINDOW)
+			|| state.hasRecent(HURT, now, HURT_WINDOW) || state.hasRecent(WITNESS_ATTACK, now, ANGER_WINDOW))) {
+			return new Mood(CALM, "was calmed by a traveler's kind words");
 		}
 		if (state.hasRecent(HURT_BY_PLAYER, now, ANGER_WINDOW)) {
 			return new Mood(ANGRY, "was attacked by a player");

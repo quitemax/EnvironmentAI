@@ -160,6 +160,9 @@ public final class ConversationManager {
 			return;
 		}
 		ServerPlayNetworking.send(player, new ConversationPayloads.Line(name, reply));
+		// The reply may have changed the villager's mood (kind words calm it): show that now, not
+		// at the next periodic refresh.
+		sendStatus(player, villager);
 
 		if (feeling.equals("afraid")) {
 			end(player, name + " backs away from you and hurries off.", true);

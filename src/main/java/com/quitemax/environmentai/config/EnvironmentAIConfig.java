@@ -25,6 +25,19 @@ public class EnvironmentAIConfig {
 	 */
 	public boolean villagerMoodEnabled = true;
 
+	/** The narrator's voice. Change at runtime with {@code /environmentai narrator style <name>}. */
+	public NarratorStyle narratorStyle = NarratorStyle.NOIR;
+	/**
+	 * How much the story layer does: OFF (nothing), NARRATION (comments only), HINTS (plus oblique
+	 * nudges when you have stalled). Change with {@code /environmentai narrator hints <level>}.
+	 */
+	public DirectorIntensity directorIntensity = DirectorIntensity.HINTS;
+	/**
+	 * Whether captions about one player shown to the others may use that player's name. Off by
+	 * default ("another traveler"): names would go to a cloud model if System 3 is moved there.
+	 */
+	public boolean narratorUsesNames = false;
+
 	/**
 	 * Framing of the conversation camera, in blocks and multipliers. Read by the client each frame,
 	 * so edit the file and restart (or relaunch); no rebuild. Tuned by eye, so expect to adjust.
