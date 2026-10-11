@@ -13,6 +13,13 @@ public class EnvironmentAIConfig {
 
 	public boolean debugLogging = false;
 
+	/**
+	 * When true, every completed System 1 decision is appended as a JSON line to
+	 * {@code <game dir>/environmentai/training/system1-<timestamp>.jsonl}, for training a smaller
+	 * decision model later.
+	 */
+	public boolean trainingDataLogging = false;
+
 	public static EnvironmentAIConfig defaults() {
 		return new EnvironmentAIConfig();
 	}

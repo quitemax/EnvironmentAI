@@ -17,6 +17,20 @@ Scenarios assume a flat world (a superflat world is ideal). Stand on the ground,
 `/function eai:clear` to remove its mobs. Inspect a mob's state with
 `/environmentai inspect @n[tag=eai_debug]`.
 
+## Training-data log
+
+With `"trainingDataLogging": true` in `config/environmentai.json`, every completed System 1
+decision is appended to `<game dir>/environmentai/training/system1-<timestamp>.jsonl` (one file per
+launch; `run/environmentai/training/` in the dev environment). Each line holds the situation
+(mob and target type, health, distance, narrative fields, previous action, the exact prompt), the
+raw model response, whether it parsed, the action applied, and latency.
+
+```powershell
+# live view, and a per-action tally
+Get-Content run\environmentai\training\*.jsonl -Wait -Tail 5
+Get-Content run\environmentai\training\*.jsonl | ConvertFrom-Json | Group-Object action | Select Name, Count
+```
+
 ## Scenarios
 
 | Function | Tests | Layout | Watch for |

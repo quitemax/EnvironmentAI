@@ -8,6 +8,8 @@ import com.quitemax.environmentai.ai.provider.ModelProvider;
 import com.quitemax.environmentai.ai.provider.PromptRequest;
 import com.quitemax.environmentai.ai.state.MobAiState;
 import com.quitemax.environmentai.ai.state.ModAttachments;
+import com.quitemax.environmentai.ai.training.TrainingDataLogger;
+import com.google.gson.JsonObject;
 import com.quitemax.environmentai.config.ModelTierConfig;
 import com.quitemax.environmentai.config.ProviderType;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -31,11 +33,14 @@ public class System1Scheduler {
 
 	private final ModelProvider provider;
 	private final ModelTierConfig config;
+	/** Null when training-data logging is disabled. */
+	private final TrainingDataLogger trainingLogger;
 	private long tickCounter = 0;
 
-	public System1Scheduler(ModelProvider provider, ModelTierConfig config) {
+	public System1Scheduler(ModelProvider provider, ModelTierConfig config, TrainingDataLogger trainingLogger) {
 		this.provider = provider;
 		this.config = config;
+		this.trainingLogger = trainingLogger;
 	}
 
 	public void register() {
@@ -79,6 +84,8 @@ public class System1Scheduler {
 		state.markSystem1Dispatched(now);
 
 		PromptRequest request = System1PromptBuilder.build(mob, state, config);
+		JsonObject trainingRow =
+			trainingLogger != null ? trainingLogger.snapshot(mob, state, request, now) : null;
 
 		CompletableFuture<String> future;
 		try {
@@ -88,7 +95,7 @@ public class System1Scheduler {
 		}
 
 		future.whenComplete((response, throwable) ->
-			runOnServerThread(mob, () -> applyResult(mob, response, throwable))
+			runOnServerThread(mob, () -> applyResult(mob, response, throwable, trainingRow))
 		);
 	}
 
@@ -98,7 +105,7 @@ public class System1Scheduler {
 		}
 	}
 
-	private void applyResult(Mob mob, String response, Throwable throwable) {
+	private void applyResult(Mob mob, String response, Throwable throwable, JsonObject trainingRow) {
 		if (!mob.isAlive()) {
 			return;
 		}
@@ -111,8 +118,13 @@ public class System1Scheduler {
 			return;
 		}
 
-		MobAction newAction = ActionParser.parse(response, state.currentAction(), EnvironmentAI.LOGGER);
+		MobAction parsed = ActionParser.tryParse(response, EnvironmentAI.LOGGER).orElse(null);
+		MobAction newAction = parsed != null ? parsed : state.currentAction();
 		state.updateAction(newAction);
+
+		if (trainingLogger != null && trainingRow != null) {
+			trainingLogger.record(trainingRow, response, parsed, newAction, System.currentTimeMillis());
+		}
 
 		checkForSignificantEvent(mob, state);
 	}
