@@ -18,6 +18,7 @@ public final class VillagerMood {
 	public static final String TRADE = "trade";
 	public static final String CURED = "cured";
 	public static final String THREAT = "threat";
+	public static final String THREATENED = "threatened";
 
 	public static final String CALM = "calm";
 	public static final String CONTENT = "content";
@@ -64,6 +65,9 @@ public final class VillagerMood {
 		}
 		if (state.hasRecent(HURT_BY_PLAYER, now, ANGER_WINDOW)) {
 			return new Mood(ANGRY, "was attacked by a player");
+		}
+		if (state.hasRecent(THREATENED, now, HURT_WINDOW)) {
+			return new Mood(AFRAID, "was threatened by a traveler");
 		}
 		if (state.hasRecent(HURT, now, HURT_WINDOW)) {
 			return new Mood(AFRAID, "was attacked not long ago");

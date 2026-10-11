@@ -127,8 +127,11 @@ System 1 reply can only be one of the actions valid for that mob in that situati
 ### Talking to villagers (System 3)
 
 Look at a villager within 6 blocks and run `/talk <message>`, or press **V** (rebindable under
-Controls > Gameplay > "Talk to villager") while looking at one, which opens chat pre-filled with
-`/talk `. The `system3` block of the config
+Controls > Gameplay > "Talk to villager") while looking at one to start a **conversation**: the
+camera moves to an over-the-shoulder shot, the villager stands still and faces you, and a text box
+stays open so you can keep talking line after line. The villager's last line is shown above it.
+Escape, stepping more than a metre away, an attack on the villager, or a hostile creature
+appearing ends it; saying something that frightens it makes it run away. The `system3` block of the config
 selects its model (local by default; dialogue is the tier most worth moving to the cloud, since it
 is not latency-critical). Replies are grounded in the villager's real situation and its vanilla
 gossip toward you; a warm or cold exchange can nudge that gossip by one point at most once per day.

@@ -81,6 +81,13 @@ public final class VillagerMoodService {
 
 	// --- event sources -------------------------------------------------------------------------
 
+	/** For events that originate outside the scan and vanilla's reputation channel (conversations). */
+	public static void recordExternal(Villager villager, String kind, String text) {
+		if (instance != null) {
+			instance.record(villager, kind, text);
+		}
+	}
+
 	/** Called by the reputation mixin: vanilla's own channel for trade, hurt, kill and cure events. */
 	public static void onReputationEvent(Villager villager, ReputationEventType type, Entity source) {
 		if (instance == null) {

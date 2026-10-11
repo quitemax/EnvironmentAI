@@ -149,3 +149,17 @@ smoke test only proved the mixin *applied* cleanly, not that it *fired* on the m
 - In 26.3 screen handling lives on `Gui` (`gui.screen()`, `gui.setScreen(...)`), not `Minecraft`.
 - Conversation camera assessed as feasible via a client mixin on `Camera.update`; not built yet.
 
+## 2026-10-11 — Conversation state and camera
+
+- The talk key now starts a server-owned conversation: a villager held still (Brain tick skipped),
+  a persistent text box, the villager's last line on screen, and an over-the-shoulder camera eased
+  in and out. First custom network protocol (six payloads) and first client mixin.
+- Ends on Escape, moving more than 1 m, the villager being hurt, a hostile within 8 blocks, a
+  frightening reply (it runs away and is recorded as threatened), death, disconnect or dimension
+  change.
+- Verified outside the game: the mood ladder (now including `threatened`) and the camera ease state
+  machine, which exposed a small snap when leaving during ease-in (fixed with the inverse of
+  smoothstep). Fabric's documented contract was read to confirm receivers run on the server thread.
+- In 26.3: screens are on `Gui`, rendering is `extractRenderState(GuiGraphicsExtractor, ...)`, payload
+  registries are `serverboundPlay()`/`clientboundPlay()`, and the camera pose is `alignWithEntity`.
+

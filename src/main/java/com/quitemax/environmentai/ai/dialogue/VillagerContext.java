@@ -39,6 +39,12 @@ public final class VillagerContext {
 		return profession.equals("none") ? "villager" : words(profession);
 	}
 
+	/** "Librarian", "Farmer"... or "Villager": what to call this villager in chat and on screen. */
+	public static String displayName(Villager villager) {
+		String profession = professionName(villager);
+		return profession.substring(0, 1).toUpperCase(Locale.ROOT) + profession.substring(1);
+	}
+
 	/** Multi-line facts block for the dialogue prompt. */
 	public static String describe(Villager villager, ServerPlayer player) {
 		VillagerData data = villager.getVillagerData();

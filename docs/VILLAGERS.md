@@ -101,7 +101,47 @@ Mood changes what a villager *says*; it does not move the villager. Steering the
   deduplication and capping, and the save codec (round trip, transient fields reset, and a save with
   none of the new fields still loads).
 
-## The talk key and the conversation camera
+## The conversation state (built)
+
+Pressing the talk key (V) with a villager under the crosshair asks the server to start a
+conversation. The server owns the state; the client only frames the shot and shows what it is told
+(packets: `StartRequest`, `Say`, `Leave` upward; `Started`, `Line`, `Ended` downward).
+
+- **The villager holds still** for the length of the conversation: its Brain tick is skipped (a
+  mixin on `Villager.customServerAiStep`, which the class declares itself) and it keeps facing you.
+  Skipping the tick is cleaner than writing "stop" every tick, which leaves a one-step jitter.
+- **It ends when:** you press Escape; you move more than 1 m from where it began; the villager is
+  hurt; a hostile creature comes within 8 blocks of it; what you say frightens it (the reply's
+  feeling is `afraid`, and it then hurries away and is recorded as threatened, so its mood follows);
+  or either party dies, disconnects or changes dimension.
+- **The screen** stays open after Enter, shows the villager's last line in a speech box with a short
+  transcript, and does not pause the game (a paused integrated server would stop the reply it is
+  waiting for).
+- **The camera** is an over-the-shoulder shot from behind and to the right of the player, aimed at
+  the villager's head, kept out of walls with a raycast, eased in over 450 ms and out over 350 ms,
+  and blended from the normal pose each frame so a quick exit does not snap. A client mixin on
+  `Camera.alignWithEntity` applies it; `detached` is set so the player's own model is drawn.
+
+## Why a villager might speak first (proposals, not built)
+
+Ambient chatter exists already but only reacts to a *mood change*. Other honest reasons, each of
+which the villager already has the facts for:
+
+| Reason | Trigger | Why it would feel earned |
+|---|---|---|
+| Warning | A hostile is close and a player is near | It tells you instead of only reacting |
+| Thanks | A player cured a zombie villager or killed what hurt it | Closes the loop on a visible event |
+| Plea | Hurt, or the golem died, and the player is near | Gives the mood a direction |
+| Greeting | A player returns after a long absence (game time since last seen) | Makes the village feel continuous |
+| News | A neighbour died, a raid ended, a trade was good | Gossip the villager actually witnessed |
+| Curiosity | A player arrives in conspicuous gear (threat tier changed) | Reacts to what you wear |
+| Offer | It restocked, or has a trade it wants to push | Ties talk to the economy |
+
+The constraint is the same as for mood: only things that really happened, rate-limited per villager
+and per player, and always one short line. A request that asks the player for something (a quest)
+is a different feature and should not be improvised from this.
+
+## The talk key (earlier, superseded by the above)
 
 - **Built:** a rebindable key (default V) that, with a villager under the crosshair, opens chat
   pre-filled with `/talk `. It is only a shortcut for the command, so the conversation still lives

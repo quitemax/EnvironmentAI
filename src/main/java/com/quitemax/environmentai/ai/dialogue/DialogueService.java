@@ -79,8 +79,7 @@ public final class DialogueService {
 	 * @return empty if a model call was started, otherwise a message explaining why not
 	 */
 	public Optional<String> talk(ServerPlayer player, String rawText) {
-		String text = sanitize(rawText, MAX_PLAYER_TEXT);
-		if (text.isEmpty()) {
+		if (sanitize(rawText, MAX_PLAYER_TEXT).isEmpty()) {
 			return Optional.of("Say something to the villager, e.g. /talk hello");
 		}
 
@@ -88,7 +87,20 @@ public final class DialogueService {
 		if (target.isEmpty()) {
 			return Optional.of("Look at a villager (within " + (int) TALK_RANGE + " blocks) to talk to them.");
 		}
-		Villager villager = target.get();
+		return talkTo(player, target.get(), rawText);
+	}
+
+	/**
+	 * One conversation turn with a specific villager (the one a conversation is held with, rather
+	 * than whichever the player happens to be looking at).
+	 *
+	 * @return empty if a model call was started, otherwise a message explaining why not
+	 */
+	public Optional<String> talkTo(ServerPlayer player, Villager villager, String rawText) {
+		String text = sanitize(rawText, MAX_PLAYER_TEXT);
+		if (text.isEmpty()) {
+			return Optional.of("Say something to the villager.");
+		}
 
 		long now = System.currentTimeMillis();
 		Long last = lastTalk.get(player.getUUID());
@@ -261,6 +273,13 @@ public final class DialogueService {
 
 		player.sendSystemMessage(Component.literal("<" + name + "> " + reply));
 
+		// If the player is in a conversation screen, show it there too; a frightening reply may also
+		// end the conversation and send the villager running.
+		ConversationManager conversations = ConversationManager.instance();
+		if (conversations != null && throwable == null) {
+			conversations.onReply(player, villager, name, reply, feeling);
+		}
+
 		if (row != null) {
 			row.addProperty("source", throwable != null ? "error" : "model");
 			if (throwable != null) {
@@ -366,7 +385,6 @@ public final class DialogueService {
 	}
 
 	private static String displayName(Villager villager) {
-		String profession = VillagerContext.professionName(villager);
-		return profession.substring(0, 1).toUpperCase(Locale.ROOT) + profession.substring(1);
+		return VillagerContext.displayName(villager);
 	}
 }
