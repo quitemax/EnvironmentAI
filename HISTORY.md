@@ -118,3 +118,15 @@ smoke test only proved the mixin *applied* cleanly, not that it *fired* on the m
   workaround); regenerated from structured data and every `tellraw` payload is now validated.
 - `tools/analyze-log.ps1` replaces the ad hoc queries used during tuning.
 
+## 2026-10-11 — Villagers: observe and talk (System 3)
+
+- Engine check first (26.3 bytecode): villagers are Brain-driven with no goal list, so the hostile
+  mob goal approach does not apply, and a gossip/reputation system already exists to build on.
+  Design in `docs/VILLAGERS.md`.
+- New **System 3** dialogue tier: own config block, executor pool and call log. `/talk <message>`
+  addresses the villager you are looking at; replies are schema-bounded and grounded in explicit
+  facts; conversation memory persists per villager and per player; a warm/cold exchange nudges
+  vanilla gossip by one point at most once per villager per game day.
+- English only for now (the mod may be published); local model for now, built to move to the cloud.
+- `tools/generate-datapack-help.py` generates and validates the datapack help function.
+

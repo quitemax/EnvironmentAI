@@ -63,6 +63,7 @@ Get-Content run\environmentai\training\*.jsonl | ConvertFrom-Json | Group-Object
 | `eai:scenario/pack` | System 2 | Six zombies, one wounded | Diverging narratives per mob |
 | `eai:scenario/stress` | Scheduling | 100 zombies in a sealed pit | TPS, call latency, timeouts |
 | `eai:scenario/ranged` | KEEP_DISTANCE | Skeletons at 4, 9 and 15 blocks | Retreat to ~11 blocks, then keep firing |
+| `eai:scenario/village_talk` | Dialogue | Librarian, farmer, weaponsmith and an unemployed villager | `/talk hello`; inspect each; replies match profession |
 | `eai:scenario/intimidation` | Intimidation | One zombie, skeleton, spider and creeper at 12 blocks | Compare geared vs ungeared (below) |
 
 Gear for intimidation tests: `/function eai:gear/netherite` (or `diamond`, `iron`, `none`) equips

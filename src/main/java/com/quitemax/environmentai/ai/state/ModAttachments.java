@@ -12,6 +12,13 @@ public final class ModAttachments {
 			.initializer(MobAiState::createDefault)
 	);
 
+	public static final AttachmentType<VillagerState> VILLAGER_STATE = AttachmentRegistry.create(
+		EnvironmentAI.id("villager_state"),
+		builder -> builder
+			.persistent(VillagerState.CODEC)
+			.initializer(VillagerState::createDefault)
+	);
+
 	private ModAttachments() {
 	}
 

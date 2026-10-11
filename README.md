@@ -124,6 +124,15 @@ keep their distance. It is not applied to a nearly dead target. Disable with
 Replies are schema-constrained where the provider supports it (`structuredOutput`, default on): a
 System 1 reply can only be one of the actions valid for that mob in that situation.
 
+### Talking to villagers (System 3)
+
+Look at a villager within 6 blocks and run `/talk <message>`. The `system3` block of the config
+selects its model (local by default; dialogue is the tier most worth moving to the cloud, since it
+is not latency-critical). Replies are grounded in the villager's real situation and its vanilla
+gossip toward you; a warm or cold exchange can nudge that gossip by one point at most once per day.
+Your text is written to `training/villager-<timestamp>.jsonl` locally. See
+[`docs/VILLAGERS.md`](docs/VILLAGERS.md) for the design and the roadmap beyond this.
+
 ### Reading the logs
 
 `tools/analyze-log.ps1` summarises the newest `training/system1-*.jsonl` and its System 2 sibling:
