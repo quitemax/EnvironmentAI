@@ -130,3 +130,22 @@ smoke test only proved the mixin *applied* cleanly, not that it *fired* on the m
 - English only for now (the mod may be published); local model for now, built to move to the cloud.
 - `tools/generate-datapack-help.py` generates and validates the datapack help function.
 
+## 2026-10-11 — Villager mood (L2)
+
+- Villagers record the last few things that happened to or near them (via vanilla's reputation
+  events, damage and death events, and a periodic scan) and derive a mood by rules, with a reason.
+  The mood and events go into the dialogue prompt, so what a villager says matches what happened.
+- Strong mood changes can make a villager exclaim unprompted to a nearby player, rate-limited and
+  silent on failure. Speech only: no movement or Brain changes.
+- The mood ladder, event bookkeeping and save codec were exercised against the compiled classes
+  outside the game (the first time any of this project's logic was tested without launching it).
+- Lesson reinforced: the mixin targets a method `Villager` declares itself, after the earlier
+  `registerGoals` hook that silently never fired on subclasses that override without `super`.
+
+## 2026-10-11 — Talk key
+
+- Rebindable key (default V) opens chat pre-filled with `/talk ` when a villager is under the
+  crosshair; first client code in the project. Deliberately a shortcut, not a new protocol.
+- In 26.3 screen handling lives on `Gui` (`gui.screen()`, `gui.setScreen(...)`), not `Minecraft`.
+- Conversation camera assessed as feasible via a client mixin on `Camera.update`; not built yet.
+

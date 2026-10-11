@@ -126,11 +126,17 @@ System 1 reply can only be one of the actions valid for that mob in that situati
 
 ### Talking to villagers (System 3)
 
-Look at a villager within 6 blocks and run `/talk <message>`. The `system3` block of the config
+Look at a villager within 6 blocks and run `/talk <message>`, or press **V** (rebindable under
+Controls > Gameplay > "Talk to villager") while looking at one, which opens chat pre-filled with
+`/talk `. The `system3` block of the config
 selects its model (local by default; dialogue is the tier most worth moving to the cloud, since it
 is not latency-critical). Replies are grounded in the villager's real situation and its vanilla
 gossip toward you; a warm or cold exchange can nudge that gossip by one point at most once per day.
-Your text is written to `training/villager-<timestamp>.jsonl` locally. See
+Villagers also have a **mood** (calm, content, uneasy, afraid, terrified, grieving, angry), derived by
+rules from what happens to and near them: an attack, a death they witnessed, a zombie coming close,
+a raid. It colours what they say, and a strong mood change can make one exclaim unprompted
+(`villagerAmbientChatter`; `villagerMoodEnabled` turns the whole thing off). It never changes how
+they move. Your text is written to `training/villager-<timestamp>.jsonl` locally. See
 [`docs/VILLAGERS.md`](docs/VILLAGERS.md) for the design and the roadmap beyond this.
 
 ### Reading the logs

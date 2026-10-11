@@ -1,6 +1,7 @@
 # Villagers: design notes
 
-Status: **L0 + L1 implemented** (observe and talk, no autonomy); L2 (mood) is next. Decisions taken:
+Status: **L0, L1 and L2 implemented** (observe, talk, mood; no autonomy). L3 (autonomy) is not
+started and is the risky one. Decisions taken:
 a separate **System 3** dialogue tier (local for now, designed to move to the cloud), **English
 only**, `/talk` first. Written after reading Minecraft 26.3's villager classes
 (bytecode), because the hostile-mob work showed what happens when the engine is assumed rather than
@@ -76,6 +77,44 @@ Measured on the local 3B model before it was wired in: replies of 9-28 words in 
 character, injection attempts deflected, but weak grounding ("what do you sell?" answered with
 generic goods). The 8B model listed the actual trades at about the same warm latency, at 4.7 GB of
 VRAM against 2.6 GB. That is the argument for a stronger dialogue model once it can be hosted.
+
+## What was built for L2 (mood)
+
+Mood changes what a villager *says*; it does not move the villager. Steering the Brain is L3.
+
+- **Event sources:** vanilla's own `onReputationEventFrom` channel (a mixin on `Villager`, which
+  declares the method itself: trade, villager hurt or killed, golem killed, zombie villager cured),
+  damage and death events, and a 1-second scan of each villager's surroundings (a hostile coming
+  close, an iron golem near, Brain panic or raid activity).
+- **Storage:** the last 5 events per villager, deduplicated (five hits in a row are one event),
+  persisted in the villager's attachment with the derived mood and its reason.
+- **Mood is rules, not a model call** (`VillagerMood`): free, deterministic and explainable. The
+  priority ladder is raid or panic (terrified), grief for a witnessed death, golem lost, attacked by
+  a player (angry), recently hurt (afraid), a hostile close (afraid, or uneasy with a golem near),
+  a cured villager or good trade (content), otherwise calm. Windows expire in 2 to 5 minutes.
+- **Voicing it:** the dialogue prompt lists the mood, its reason and the recent events with
+  relative times, so a frightened villager can say why and cannot invent an event.
+- **Ambient chatter:** on a change into a strong mood (afraid, terrified, grieving, angry) a villager
+  within 10 blocks of a player, with line of sight, may exclaim one short line. At most once a
+  minute per villager, one System 3 call, silent on failure. Disable with `villagerAmbientChatter`.
+- **Verified outside the game** against the compiled classes: all 15 mood-ladder cases, event
+  deduplication and capping, and the save codec (round trip, transient fields reset, and a save with
+  none of the new fields still loads).
+
+## The talk key and the conversation camera
+
+- **Built:** a rebindable key (default V) that, with a villager under the crosshair, opens chat
+  pre-filled with `/talk `. It is only a shortcut for the command, so the conversation still lives
+  entirely on the server and there is no custom packet or screen to keep in step. Client code is in
+  `src/client`.
+- **Planned: a conversation state with its own camera.** Feasible on 26.3: `Camera.update` is the
+  per-frame hook and `setPosition`/`setRotation` are protected, so a client mixin can frame an
+  over-the-shoulder shot of the villager while the key's state is active, and release it on
+  Escape, on moving away, or when the conversation ends. The server-side player position is never
+  touched. Things to settle when building it: input handling while in the state (block movement or
+  let any movement cancel it), hiding or keeping the HUD, eased transitions in and out, and a
+  fallback if the framing is blocked by terrain. A client mixin config does not exist yet; it should
+  use `defaultRequire: 1` so a failed injection is loud, not silent.
 
 ## Proposed first milestone (observe + talk, no autonomy)
 

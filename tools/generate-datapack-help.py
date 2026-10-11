@@ -32,6 +32,8 @@ SCENARIOS = [
     ("ranged", "KEEP_DISTANCE: skeletons at 4/9/15 blocks"),
     ("intimidation", "one of each archetype; pair with gear"),
     ("village_talk", "villagers with professions; /talk to them"),
+    ("village_threat", "L2 mood: villagers + a zombie, no golem (afraid)"),
+    ("village_golem", "L2 mood: same threat with an iron golem (uneasy)"),
 ]
 
 
