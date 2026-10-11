@@ -3,7 +3,8 @@
   "package": "com.quitemax.environmentai.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
-    "MobTargetEventMixin"
+    "MobTargetEventMixin",
+    "VillagerReputationMixin"
   ],
   "injectors": {
     "defaultRequire": 1

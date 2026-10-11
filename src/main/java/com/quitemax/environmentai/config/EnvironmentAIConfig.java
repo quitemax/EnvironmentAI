@@ -20,6 +20,17 @@ public class EnvironmentAIConfig {
 	public boolean debugLogging = false;
 
 	/**
+	 * Villagers derive a mood from what happens to and around them, which colours what they say.
+	 * Changes speech only; villager movement is never touched.
+	 */
+	public boolean villagerMoodEnabled = true;
+	/**
+	 * With a strong mood (afraid, terrified, grieving, angry) a villager may exclaim something
+	 * unprompted to a player within 10 blocks, at most once a minute. Costs one System 3 call each.
+	 */
+	public boolean villagerAmbientChatter = true;
+
+	/**
 	 * When true, every completed System 1 decision is appended as a JSON line to
 	 * {@code <game dir>/environmentai/training/system1-<timestamp>.jsonl}, for training a smaller
 	 * decision model later.

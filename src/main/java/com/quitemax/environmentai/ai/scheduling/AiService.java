@@ -5,6 +5,7 @@ import com.quitemax.environmentai.ai.dialogue.DialogueService;
 import com.quitemax.environmentai.ai.provider.ModelProvider;
 import com.quitemax.environmentai.ai.provider.ProviderFactory;
 import com.quitemax.environmentai.ai.training.TrainingDataLogger;
+import com.quitemax.environmentai.ai.villager.VillagerMoodService;
 import com.quitemax.environmentai.config.EnvironmentAIConfig;
 import com.quitemax.environmentai.config.ModelTierConfig;
 import net.fabricmc.loader.api.FabricLoader;
@@ -19,6 +20,8 @@ public final class AiService {
 	private final System1Scheduler system1Scheduler;
 	private final System2TriggerManager system2TriggerManager;
 	private final DialogueService dialogueService;
+	/** Null when villager moods are disabled. */
+	private final VillagerMoodService moodService;
 
 	public AiService(EnvironmentAIConfig config) {
 		AiExecutors executors = new AiExecutors(
@@ -36,9 +39,12 @@ public final class AiService {
 		this.system2TriggerManager = new System2TriggerManager(
 			system2Provider, config.system2, createLogger(config, "system2", config.system2, stamp)
 		);
-		this.dialogueService = new DialogueService(
-			system3Provider, config.system3, createLogger(config, "villager", config.system3, stamp)
-		);
+		// One writer for the villager log, shared: two writers on the same file would truncate it.
+		TrainingDataLogger villagerLogger = createLogger(config, "villager", config.system3, stamp);
+		this.dialogueService = new DialogueService(system3Provider, config.system3, villagerLogger);
+		this.moodService = config.villagerMoodEnabled
+			? new VillagerMoodService(dialogueService, villagerLogger, config.villagerAmbientChatter)
+			: null;
 	}
 
 	/**
@@ -73,6 +79,9 @@ public final class AiService {
 		MobTracker.register();
 		system1Scheduler.register();
 		system2TriggerManager.register();
+		if (moodService != null) {
+			moodService.register();
+		}
 
 		EnvironmentAI.LOGGER.info("EnvironmentAI dual-process mob AI started");
 	}

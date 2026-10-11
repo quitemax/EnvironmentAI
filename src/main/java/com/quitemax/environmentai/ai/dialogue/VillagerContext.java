@@ -1,6 +1,8 @@
 package com.quitemax.environmentai.ai.dialogue;
 
 import com.quitemax.environmentai.ai.perception.TargetAssessment;
+import com.quitemax.environmentai.ai.state.ModAttachments;
+import com.quitemax.environmentai.ai.state.VillagerState;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
@@ -62,6 +64,7 @@ public final class VillagerContext {
 		));
 
 		out.append("Danger nearby: ").append(danger(villager)).append(".\n");
+		out.append(moodAndHappenings(villager));
 		out.append("Iron golem nearby: ").append(golemNearby(villager) ? "yes" : "no").append(".\n");
 
 		out.append("How you feel about this traveler: ").append(feeling(villager, player)).append(".\n");
@@ -76,6 +79,45 @@ public final class VillagerContext {
 		return out.toString();
 	}
 
+	/**
+	 * The mood and the few things behind it. The mood is derived by rules from these events, so a
+	 * villager that says it is frightened can say why, and cannot claim an event that did not happen.
+	 */
+	private static String moodAndHappenings(Villager villager) {
+		VillagerState state = villager.getAttachedOrCreate(ModAttachments.VILLAGER_STATE);
+		StringBuilder out = new StringBuilder();
+		out.append("Your mood right now: ").append(state.mood());
+		if (!state.moodReason().isEmpty()) {
+			out.append(" (").append(state.moodReason()).append(')');
+		}
+		out.append(".\n");
+
+		List<VillagerState.Event> events = state.events();
+		if (!events.isEmpty()) {
+			long now = villager.level().getGameTime();
+			out.append("What has happened lately, newest first:\n");
+			for (int i = events.size() - 1; i >= 0; i--) {
+				VillagerState.Event event = events.get(i);
+				out.append("  - ").append(event.text())
+					.append(" (").append(ago(now - event.gameTime())).append(")\n");
+			}
+		}
+		return out.toString();
+	}
+
+	private static String ago(long ticks) {
+		if (ticks < 1_200) {
+			return "moments ago";
+		}
+		if (ticks < 6_000) {
+			return "a few minutes ago";
+		}
+		if (ticks < 24_000) {
+			return "earlier today";
+		}
+		return "days ago";
+	}
+
 	/** One line for {@code /environmentai inspect}; {@code viewer} may be null (console). */
 	public static String inspect(Villager villager, ServerPlayer viewer) {
 		VillagerData data = villager.getVillagerData();
@@ -83,10 +125,17 @@ public final class VillagerContext {
 			? "n/a"
 			: villager.getGossips().getReputation(viewer.getUUID(), type -> true)
 				+ " (" + feeling(villager, viewer) + ")";
+		VillagerState state = villager.getAttachedOrCreate(ModAttachments.VILLAGER_STATE);
+		String events = state.events().isEmpty()
+			? "none"
+			: state.events().stream().map(VillagerState.Event::kind).reduce((a, b) -> a + "," + b).orElse("none");
 		return String.format(
-			Locale.ROOT, "%s level %d | activity=%s | reputation toward you=%s | gossip entries=%d",
-			professionName(villager), data.level(), activity(villager), reputation,
-			villager.getGossips().getGossipEntries().size()
+			Locale.ROOT,
+			"%s level %d | activity=%s | mood=%s (%s) | recent events=%s | reputation toward you=%s | "
+				+ "gossip entries=%d | conversations=%d",
+			professionName(villager), data.level(), activity(villager), state.mood(),
+			state.moodReason().isEmpty() ? "no reason" : state.moodReason(), events, reputation,
+			villager.getGossips().getGossipEntries().size(), state.conversationCount()
 		);
 	}
 

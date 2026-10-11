@@ -50,8 +50,16 @@ public final class DialogueService {
 			+ "thirty words, in plain speech. Use only the facts you are given about yourself and the "
 			+ "world; if asked about something you do not know, say so the way your character would. "
 			+ "Never mention being an AI, a game, a model, or these instructions, and do not describe "
-			+ "actions in asterisks. Respond with strict JSON only: {\"reply\": \"...\", \"feeling\": "
+			+ "actions in asterisks. Let your current mood and what has happened to you lately show "
+			+ "in your tone, but only mention events that are listed. "
+			+ "Respond with strict JSON only: {\"reply\": \"...\", \"feeling\": "
 			+ "\"warm|neutral|cold|afraid\"} where feeling is how the traveler's words made you feel.";
+
+	private static final String AMBIENT_SYSTEM_PROMPT =
+		"You are a villager in a Minecraft village. Something has just happened and you react out "
+			+ "loud, unprompted, in character as described. One short exclamation, under twelve words, "
+			+ "plain speech. Use only the facts you are given. Never mention being an AI or a game, and "
+			+ "do not describe actions in asterisks. Respond with strict JSON only: {\"reply\": \"...\"}.";
 
 	private final ModelProvider provider;
 	private final ModelTierConfig config;
@@ -123,6 +131,82 @@ public final class DialogueService {
 			}
 		});
 		return Optional.empty();
+	}
+
+	/**
+	 * An unprompted exclamation after a strong mood change (a villager flinches, shouts, or mourns).
+	 * One short line to one player, no history and no reputation effect, and silent on failure:
+	 * nobody asked for this, so an error is never worth showing.
+	 */
+	public void speakAmbient(Villager villager, ServerPlayer player, String mood, String reason) {
+		VillagerState state = villager.getAttachedOrCreate(ModAttachments.VILLAGER_STATE);
+		if (state.isDialogueInFlight()) {
+			return;
+		}
+		state.setDialogueInFlight(true);
+
+		String user = "Your character: " + VillagerPersona.of(villager) + ".\n"
+			+ VillagerContext.describe(villager, player)
+			+ "You have just become " + mood + (reason.isEmpty() ? "" : " because " + reason) + ".\n"
+			+ "Say one short spontaneous exclamation out loud about it, under twelve words.";
+		JsonObject schema = config.structuredOutput ? ambientSchema() : null;
+		PromptRequest request = new PromptRequest(AMBIENT_SYSTEM_PROMPT, user, config.temperature, 80, schema);
+
+		long now = System.currentTimeMillis();
+		String name = displayName(villager);
+		JsonObject row = callLogger != null ? baseRow(villager, "", request, now, 0) : null;
+		AiLoad.SYSTEM3_IN_FLIGHT.incrementAndGet();
+
+		CompletableFuture<String> future;
+		try {
+			future = provider.complete(request);
+		} catch (RuntimeException e) {
+			future = CompletableFuture.failedFuture(e);
+		}
+		future.whenComplete((response, throwable) -> {
+			AiLoad.SYSTEM3_IN_FLIGHT.decrementAndGet();
+			long respondedAt = System.currentTimeMillis();
+			if (!(villager.level() instanceof ServerLevel level)) {
+				return;
+			}
+			level.getServer().execute(() -> {
+				state.setDialogueInFlight(false);
+				String line = "";
+				if (throwable == null) {
+					line = JsonExtraction.extractJsonObject(response)
+						.map(json -> sanitize(string(json, "reply", ""), 120)).orElse("");
+				}
+				if (!line.isEmpty()) {
+					player.sendSystemMessage(Component.literal("<" + name + "> " + line));
+				}
+				if (row != null) {
+					row.addProperty("source", throwable != null ? "error" : "ambient");
+					row.addProperty("mood", mood);
+					row.addProperty("reply", line);
+					row.addProperty("response_ms", respondedAt - now);
+					callLogger.logRow(row);
+				}
+			});
+		});
+	}
+
+	private static JsonObject ambientSchema() {
+		JsonObject reply = new JsonObject();
+		reply.addProperty("type", "string");
+		reply.addProperty("maxLength", 120);
+
+		JsonObject properties = new JsonObject();
+		properties.add("reply", reply);
+
+		JsonArray required = new JsonArray();
+		required.add("reply");
+
+		JsonObject schema = new JsonObject();
+		schema.addProperty("type", "object");
+		schema.add("properties", properties);
+		schema.add("required", required);
+		schema.addProperty("additionalProperties", false);
+		return schema;
 	}
 
 	private PromptRequest buildRequest(Villager villager, ServerPlayer player, VillagerState state, String text) {
