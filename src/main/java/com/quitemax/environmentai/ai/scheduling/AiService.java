@@ -1,6 +1,7 @@
 package com.quitemax.environmentai.ai.scheduling;
 
 import com.quitemax.environmentai.EnvironmentAI;
+import com.quitemax.environmentai.ai.dialogue.ConversationManager;
 import com.quitemax.environmentai.ai.dialogue.DialogueService;
 import com.quitemax.environmentai.ai.provider.ModelProvider;
 import com.quitemax.environmentai.ai.provider.ProviderFactory;
@@ -20,6 +21,7 @@ public final class AiService {
 	private final System1Scheduler system1Scheduler;
 	private final System2TriggerManager system2TriggerManager;
 	private final DialogueService dialogueService;
+	private final ConversationManager conversationManager;
 	/** Null when villager moods are disabled. */
 	private final VillagerMoodService moodService;
 
@@ -42,6 +44,7 @@ public final class AiService {
 		// One writer for the villager log, shared: two writers on the same file would truncate it.
 		TrainingDataLogger villagerLogger = createLogger(config, "villager", config.system3, stamp);
 		this.dialogueService = new DialogueService(system3Provider, config.system3, villagerLogger);
+		this.conversationManager = new ConversationManager(dialogueService);
 		this.moodService = config.villagerMoodEnabled
 			? new VillagerMoodService(dialogueService, villagerLogger, config.villagerAmbientChatter)
 			: null;
@@ -82,6 +85,7 @@ public final class AiService {
 		if (moodService != null) {
 			moodService.register();
 		}
+		conversationManager.register();
 
 		EnvironmentAI.LOGGER.info("EnvironmentAI dual-process mob AI started");
 	}

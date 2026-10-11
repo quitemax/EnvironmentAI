@@ -5,6 +5,7 @@ import com.quitemax.environmentai.ai.state.ModAttachments;
 import com.quitemax.environmentai.command.EnvironmentAiCommand;
 import com.quitemax.environmentai.config.ConfigManager;
 import com.quitemax.environmentai.config.EnvironmentAIConfig;
+import com.quitemax.environmentai.network.ConversationPayloads;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 
@@ -31,6 +32,8 @@ public class EnvironmentAI implements ModInitializer {
 
 		config = ConfigManager.load(LOGGER);
 		ModAttachments.register();
+		// Payload types must be known on both sides before either sends one.
+		ConversationPayloads.register();
 
 		AiService aiService = new AiService(config);
 		aiService.start();
