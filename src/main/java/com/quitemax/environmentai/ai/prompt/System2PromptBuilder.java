@@ -14,7 +14,11 @@ public final class System2PromptBuilder {
 			+ "intent, a short description of its target (if any), and a short rolling memory note "
 			+ "of recent significant events. This narrative state is what a faster, more reflexive "
 			+ "decision layer will act on between now and your next update, so make it useful. "
-			+ "Respond with strict JSON only, no other text: {\"disposition\": \"...\", \"intent\": "
+			+ "Use only the facts you are given: never invent what the target is. Do not put "
+				+ "numbers, distances or health values in the memory note; they go stale within "
+				+ "seconds. Record events and changes (for example \"was wounded\", \"lost its "
+				+ "target\"), not measurements. "
+				+ "Respond with strict JSON only, no other text: {\"disposition\": \"...\", \"intent\": "
 			+ "\"...\", \"target_description\": \"...\", \"memory_notes\": \"...\"}.";
 
 	private System2PromptBuilder() {
@@ -31,6 +35,7 @@ public final class System2PromptBuilder {
 
 		LivingEntity target = mob.getTarget();
 		if (target != null) {
+			user.append("Current target: ").append(describe(target)).append('\n');
 			user.append("Current target distance: ").append(mob.distanceTo(target)).append(" blocks\n");
 		} else {
 			user.append("No current target.\n");
