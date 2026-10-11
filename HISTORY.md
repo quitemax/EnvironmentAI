@@ -98,3 +98,23 @@ smoke test only proved the mixin *applied* cleanly, not that it *fired* on the m
 - All behavioural conclusions drawn from sessions before this change describe the model's
   *decisions*, not mob behaviour.
 
+## 2026-10-11 — Archetypes, perception, structured output, startup grace
+
+- **Archetypes** (`MobArchetype`): melee, skittish, explosive and ranged mobs get different action
+  sets, with a new `KEEP_DISTANCE` action that retreats ranged mobs from close targets and otherwise
+  leaves them to their vanilla bow goal (holding no movement flag while firing).
+- **Perception** (`TargetAssessment`): target armour points and held weapon become a 0-10 threat
+  score; line of sight and light level join the prompt. **Intimidation** is a rule comparing threat
+  to an archetype's nerve, raised by fellow hostiles, so a well-equipped player makes melee mobs
+  flee and ranged mobs keep range.
+- **Structured output**: Ollama is given a JSON schema, so System 1 can only answer with an action
+  valid for that mob and System 2 can only emit its four keys. Actions invalid for the situation
+  are also rejected in code for providers without it.
+- **Startup grace**: all of a session's timeouts landed in its first seconds, while the server
+  reported itself 40 ticks behind; model calls now wait 200 ticks after a world starts.
+- **Base-goal fix**: `AbstractSystem1Goal.canContinueToUse` re-ran each subclass's throttled
+  `canUse()`, so running goals stopped and restarted constantly. It now checks the action only.
+- **Datapack**: `help` had been invalid JSON since it was written (a bad line-continuation
+  workaround); regenerated from structured data and every `tellraw` payload is now validated.
+- `tools/analyze-log.ps1` replaces the ad hoc queries used during tuning.
+

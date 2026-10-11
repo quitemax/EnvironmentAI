@@ -100,6 +100,37 @@ action or behaviour. Install it with `tools/install-datapack.ps1 -World <name>`,
 `/reload`, `/function eai:setup`, `/function eai:help`. See
 [`testing/README.md`](testing/README.md).
 
+### Archetypes, perception and intimidation
+
+Each hostile mob gets an archetype that decides which actions the model may choose from and how
+easily it loses its nerve:
+
+| Archetype | Mobs (by capability) | Actions | Nerve |
+|---|---|---|---|
+| `MELEE` | zombie and most others | ATTACK, FLEE, APPROACH, GUARD | 9.0 |
+| `SKITTISH` | spiders | ATTACK, FLEE, APPROACH, GUARD | 6.5 |
+| `EXPLOSIVE` | creeper (ATTACK defers to the vanilla swell) | ATTACK, APPROACH, FLEE, GUARD | 7.0 |
+| `RANGED` | skeleton, pillager, witch, drowned (anything `RangedAttackMob`) | ATTACK, KEEP_DISTANCE, FLEE, APPROACH, GUARD | 6.0 |
+
+`KEEP_DISTANCE` backs a ranged mob off when the target is within 7 blocks and otherwise leaves it
+to its own bow, so it kites rather than going quiet.
+
+The prompt includes what a mob can see of its target: armour points and held weapon (reduced to a
+0-10 threat score), line of sight, light level, and the nearest creatures with distances. **Intimidation** is a rule: when the target's
+threat reaches the mob's nerve (raised by fellow hostiles nearby) melee mobs flee and ranged mobs
+keep their distance. It is not applied to a nearly dead target. Disable with
+`intimidationEnabled: false`.
+
+Replies are schema-constrained where the provider supports it (`structuredOutput`, default on): a
+System 1 reply can only be one of the actions valid for that mob in that situation.
+
+### Reading the logs
+
+`tools/analyze-log.ps1` summarises the newest `training/system1-*.jsonl` and its System 2 sibling:
+which build ran, decisions by health band and species, rule/override counts, latency by queue
+depth and System 2 load, errors, and whether fleeing opened the distance. `-Mob <id prefix>` prints
+one mob's timeline.
+
 ### Debugging
 
 `/environmentai inspect <target>` prints a mob's live AI state (current action, disposition,

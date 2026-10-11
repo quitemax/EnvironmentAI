@@ -11,6 +11,13 @@ public final class AiLoad {
 	public static final AtomicInteger SYSTEM1_IN_FLIGHT = new AtomicInteger();
 	public static final AtomicInteger SYSTEM2_IN_FLIGHT = new AtomicInteger();
 
+	/**
+	 * Model calls are held back for this many server ticks after a world starts. Logged data showed
+	 * every timeout of a session bunched in the first seconds, while the server was reporting itself
+	 * dozens of ticks behind: calls made then queue behind world loading and time out.
+	 */
+	public static final int STARTUP_GRACE_TICKS = 200;
+
 	private AiLoad() {
 	}
 }

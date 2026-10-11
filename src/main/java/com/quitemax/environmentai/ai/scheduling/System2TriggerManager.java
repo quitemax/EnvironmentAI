@@ -112,7 +112,7 @@ public final class System2TriggerManager {
 			}
 		}
 
-		if (ready.isEmpty()) {
+		if (ready.isEmpty() || server.getTickCount() < AiLoad.STARTUP_GRACE_TICKS) {
 			return;
 		}
 

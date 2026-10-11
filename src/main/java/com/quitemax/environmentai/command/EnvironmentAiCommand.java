@@ -3,6 +3,8 @@ package com.quitemax.environmentai.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.quitemax.environmentai.ai.archetype.MobArchetype;
+import com.quitemax.environmentai.ai.perception.TargetAssessment;
 import com.quitemax.environmentai.ai.state.MobAiState;
 import com.quitemax.environmentai.ai.state.ModAttachments;
 import net.minecraft.commands.CommandSourceStack;
@@ -50,6 +52,15 @@ public final class EnvironmentAiCommand {
 					liveTarget.getHealth(), liveTarget.getMaxHealth()
 				)
 		);
+		// What the intimidation rule is comparing: the target's gear against this mob's nerve.
+		MobArchetype archetype = MobArchetype.of(mob);
+		String gear = liveTarget == null
+			? "no target"
+			: TargetAssessment.of(mob, liveTarget).describe() + String.format(
+				Locale.ROOT, " [threat %.1f vs nerve %.1f]",
+				TargetAssessment.of(mob, liveTarget).threat(), archetype.nerve()
+			);
+		live = live + " | archetype=" + archetype + " | " + gear;
 		String report = String.format(
 			"[%s] action=%s (stuck=%d ticks) | %s | disposition=%s | intent=%s | target=%s | memory=%s",
 			mob.getType(), state.currentAction(), state.consecutiveSameActionTicks(), live,

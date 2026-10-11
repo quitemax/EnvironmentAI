@@ -62,6 +62,12 @@ Get-Content run\environmentai\training\*.jsonl | ConvertFrom-Json | Group-Object
 | `eai:scenario/zoo` | Species coverage | One glass pen per species, phantom as control | Mobs where melee `ATTACK` is wrong |
 | `eai:scenario/pack` | System 2 | Six zombies, one wounded | Diverging narratives per mob |
 | `eai:scenario/stress` | Scheduling | 100 zombies in a sealed pit | TPS, call latency, timeouts |
+| `eai:scenario/ranged` | KEEP_DISTANCE | Skeletons at 4, 9 and 15 blocks | Retreat to ~11 blocks, then keep firing |
+| `eai:scenario/intimidation` | Intimidation | One zombie, skeleton, spider and creeper at 12 blocks | Compare geared vs ungeared (below) |
+
+Gear for intimidation tests: `/function eai:gear/netherite` (or `diamond`, `iron`, `none`) equips
+you; then run `intimidation` and check each mob with `/environmentai inspect`, which shows archetype
+and `[threat X vs nerve Y]`. Rows from this rule have `rule: intimidated`.
 
 ## Notes
 
