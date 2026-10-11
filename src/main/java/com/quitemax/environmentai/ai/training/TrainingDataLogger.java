@@ -20,10 +20,15 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Appends one JSON line per completed System 1 decision to a file, so real in-game
- * (situation, chosen action) pairs can later be used to train or evaluate a smaller decision
- * model. Capture happens on the server thread at dispatch (the situation as the model saw it),
- * the row is completed when the answer arrives, and file I/O happens on its own daemon thread so
+ * Appends one JSON line per System 1 decision to a file, so real in-game (situation, chosen
+ * action) pairs can later be used to train or evaluate a smaller decision model.
+ *
+ * <p>Every row has a {@code source}: {@code "model"} (the model answered), {@code "error"} (the
+ * call failed or timed out; the mob kept its action) or {@code "rule"} (a scheduler rule decided
+ * without calling the model). Only {@code "model"} rows are usable as training labels.
+ *
+ * <p>Capture happens on the server thread at dispatch (the situation as the model saw it), the
+ * row is completed when the answer arrives, and file I/O happens on its own daemon thread so
  * logging can never stall the tick loop. If the writer falls behind, rows are dropped rather than
  * queued without bound.
  */
@@ -49,10 +54,14 @@ public final class TrainingDataLogger {
 		thread.start();
 	}
 
-	/** Captures the situation exactly as System 1 is about to see it. Call on the server thread. */
-	public JsonObject snapshot(Mob mob, MobAiState state, PromptRequest request, long dispatchedAtMs) {
+	/**
+	 * Captures the situation as System 1 sees it. Call on the server thread.
+	 *
+	 * @param request the prompt sent to the model, or null for rule-decided rows
+	 */
+	public JsonObject snapshot(Mob mob, MobAiState state, PromptRequest request, long nowMs) {
 		JsonObject row = new JsonObject();
-		row.addProperty("dispatched_at_ms", dispatchedAtMs);
+		row.addProperty("dispatched_at_ms", nowMs);
 		row.addProperty("game_time", mob.level().getGameTime());
 		row.addProperty("mob_uuid", mob.getUUID().toString());
 		row.addProperty("mob_type", EntityType.getKey(mob.getType()).toString());
@@ -74,26 +83,62 @@ public final class TrainingDataLogger {
 			row.addProperty("target_max_health", target.getMaxHealth());
 		}
 
-		// The exact text the model saw, so a text-input model can be trained on it directly.
-		row.addProperty("prompt", request.userPrompt());
+		if (request != null) {
+			// The exact text the model saw, so a text-input model can be trained on it directly.
+			row.addProperty("prompt", request.userPrompt());
+		}
 		return row;
 	}
 
 	/**
-	 * Completes and enqueues a row.
+	 * Completes and enqueues a row for a model answer.
 	 *
-	 * @param parsed  the action the model actually returned, or null if the response was unusable
-	 * @param applied the action the mob ended up with (the previous one when parsing failed)
+	 * @param parsed        the action the model actually returned, or null if the response was unusable
+	 * @param applied       the action the mob ended up with (the previous one when parsing failed)
+	 * @param respondedAtMs when the response arrived (off the server thread)
+	 * @param appliedAtMs   when it was applied on the server thread
 	 */
-	public void record(JsonObject snapshot, String rawResponse, MobAction parsed, MobAction applied, long nowMs) {
-		snapshot.addProperty("provider", provider);
-		snapshot.addProperty("model", model);
-		snapshot.addProperty("raw_response", rawResponse);
-		snapshot.addProperty("parsed", parsed != null);
-		snapshot.addProperty("action", applied.name());
-		snapshot.addProperty("latency_ms", nowMs - snapshot.get("dispatched_at_ms").getAsLong());
+	public void recordModel(
+		JsonObject row, String rawResponse, MobAction parsed, MobAction applied, long respondedAtMs, long appliedAtMs
+	) {
+		row.addProperty("source", "model");
+		row.addProperty("raw_response", rawResponse);
+		row.addProperty("parsed", parsed != null);
+		row.addProperty("action", applied.name());
+		addTiming(row, respondedAtMs, appliedAtMs);
+		enqueue(row);
+	}
 
-		if (!queue.offer(GSON.toJson(snapshot))) {
+	/** Completes and enqueues a row for a failed or timed-out call; the mob kept {@code kept}. */
+	public void recordError(JsonObject row, Throwable error, MobAction kept, long respondedAtMs, long appliedAtMs) {
+		row.addProperty("source", "error");
+		row.addProperty("error", error.toString());
+		row.addProperty("parsed", false);
+		row.addProperty("action", kept.name());
+		addTiming(row, respondedAtMs, appliedAtMs);
+		enqueue(row);
+	}
+
+	/** Enqueues a row for an action chosen by a scheduler rule, with no model call. */
+	public void recordRule(JsonObject row, MobAction applied, String reason) {
+		row.addProperty("source", "rule");
+		row.addProperty("rule", reason);
+		row.addProperty("action", applied.name());
+		enqueue(row);
+	}
+
+	private static void addTiming(JsonObject row, long respondedAtMs, long appliedAtMs) {
+		long dispatchedAt = row.get("dispatched_at_ms").getAsLong();
+		// response_ms: dispatch until the answer arrived (executor + network + Ollama queue + inference).
+		row.addProperty("response_ms", respondedAtMs - dispatchedAt);
+		// apply_delay_ms: answer arrived until the server thread got around to applying it.
+		row.addProperty("apply_delay_ms", appliedAtMs - respondedAtMs);
+	}
+
+	private void enqueue(JsonObject row) {
+		row.addProperty("provider", provider);
+		row.addProperty("model", model);
+		if (!queue.offer(GSON.toJson(row))) {
 			long total = dropped.incrementAndGet();
 			if (total == 1 || total % 1000 == 0) {
 				logger.warn("Training log writer is behind; dropped {} row(s) so far", total);

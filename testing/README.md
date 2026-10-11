@@ -23,12 +23,18 @@ With `"trainingDataLogging": true` in `config/environmentai.json`, every complet
 decision is appended to `<game dir>/environmentai/training/system1-<timestamp>.jsonl` (one file per
 launch; `run/environmentai/training/` in the dev environment). Each line holds the situation
 (mob and target type, health, distance, narrative fields, previous action, the exact prompt), the
-raw model response, whether it parsed, the action applied, and latency.
+raw model response, whether it parsed, and the action applied.
+
+Each row has a `source`: `model` (the model answered; the only rows usable as training labels),
+`error` (call failed or timed out, mob kept its action) or `rule` (decided without a model call,
+currently only `no_target`, logged on change). Timing is split into `response_ms` (dispatch until
+the answer arrived) and `apply_delay_ms` (answer arrived until the server thread applied it), and
+`in_flight_at_dispatch` shows how many calls were outstanding, the direct measure of queueing.
 
 ```powershell
 # live view, and a per-action tally
 Get-Content run\environmentai\training\*.jsonl -Wait -Tail 5
-Get-Content run\environmentai\training\*.jsonl | ConvertFrom-Json | Group-Object action | Select Name, Count
+Get-Content run\environmentai\training\*.jsonl | ConvertFrom-Json | Group-Object source, action | Select Name, Count
 ```
 
 ## Scenarios

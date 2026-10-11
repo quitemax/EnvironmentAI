@@ -22,6 +22,13 @@ public class ModelTierConfig {
 	public int tickInterval = 2;
 	public long minSpacingLocalMs = 250;
 	public long minSpacingCloudMs = 1_000;
+	/** Mobs farther than this from every player are not given decisions (0 or less = no limit). */
+	public double activeRadiusBlocks = 48.0;
+	/**
+	 * Global cap on simultaneously outstanding System 1 calls. Without it, a crowd of mobs all
+	 * dispatching at once queues behind the model and every answer arrives stale.
+	 */
+	public int maxInFlight = 4;
 
 	// System 2 cadence settings.
 	/** Minimum time between two triggers being coalesced into one refresh. */

@@ -1,5 +1,6 @@
 package com.quitemax.environmentai.ai.scheduling;
 
+import com.google.gson.JsonObject;
 import com.quitemax.environmentai.EnvironmentAI;
 import com.quitemax.environmentai.ai.action.ActionParser;
 import com.quitemax.environmentai.ai.action.MobAction;
@@ -9,7 +10,6 @@ import com.quitemax.environmentai.ai.provider.PromptRequest;
 import com.quitemax.environmentai.ai.state.MobAiState;
 import com.quitemax.environmentai.ai.state.ModAttachments;
 import com.quitemax.environmentai.ai.training.TrainingDataLogger;
-import com.google.gson.JsonObject;
 import com.quitemax.environmentai.config.ModelTierConfig;
 import com.quitemax.environmentai.config.ProviderType;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -17,24 +17,45 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Drives System 1: each server tick, considers a staggered slice of tracked mobs (via
  * {@code tickInterval} + a per-mob hash offset, so not every mob is checked on the same tick),
- * throttles actual model calls per mob, and dispatches asynchronously. Results are always
- * applied back on the main thread via {@link MinecraftServer#execute(Runnable)}.
+ * and decides each one's action by one of three routes:
+ * <ul>
+ *   <li><b>skip</b> — the mob is farther than {@code activeRadiusBlocks} from every player;</li>
+ *   <li><b>rule</b> — the mob has no target, so there is nothing to react to and the model is
+ *       not called (it only produced no-op ATTACK/FLEE answers in that case);</li>
+ *   <li><b>model</b> — dispatched asynchronously, throttled per mob by {@code minSpacing*Ms} and
+ *       globally by {@code maxInFlight}, least-recently-served mob first.</li>
+ * </ul>
+ * Results are always applied back on the main thread via {@link MinecraftServer#execute(Runnable)}.
  */
 public class System1Scheduler {
 	private static final float NEAR_DEATH_HEALTH_FRACTION = 0.2f;
 	private static final float NEAR_DEATH_RECOVERY_FRACTION = 0.25f;
-	private static final int STUCK_ACTION_TICK_THRESHOLD = 15;
+	/**
+	 * Decisions in a row with the same action before System 1 flags the mob as "stuck". Counted in
+	 * decisions (a few per second per mob), so this is tens of seconds: sustained ATTACK during a
+	 * fight is normal and must not be reported to System 2 as being stuck.
+	 */
+	private static final int STUCK_ACTION_TICK_THRESHOLD = 100;
+
+	/** With no target there is nothing to react to, so let vanilla behaviour run. */
+	private static final MobAction NO_TARGET_ACTION = MobAction.IDLE;
 
 	private final ModelProvider provider;
 	private final ModelTierConfig config;
 	/** Null when training-data logging is disabled. */
 	private final TrainingDataLogger trainingLogger;
+	/** Outstanding model calls across all mobs. Decremented off the server thread, hence atomic. */
+	private final AtomicInteger inFlight = new AtomicInteger();
 	private long tickCounter = 0;
 
 	public System1Scheduler(ModelProvider provider, ModelTierConfig config, TrainingDataLogger trainingLogger) {
@@ -49,43 +70,96 @@ public class System1Scheduler {
 
 	private void onServerTick(MinecraftServer server) {
 		tickCounter++;
+
+		List<Mob> candidates = new ArrayList<>();
 		for (ServerLevel level : server.getAllLevels()) {
 			for (UUID uuid : MobTracker.trackedIn(level)) {
 				Mob mob = MobTracker.get(uuid);
-				if (mob != null && mob.isAlive()) {
-					considerMob(mob);
+				if (mob != null && mob.isAlive() && considerMob(mob)) {
+					candidates.add(mob);
 				}
 			}
 		}
+
+		if (candidates.isEmpty()) {
+			return;
+		}
+
+		// Longest-waiting mob first, so a crowd can't starve the mobs that happen to iterate last.
+		candidates.sort(Comparator.comparingLong(
+			(Mob mob) -> mob.getAttachedOrCreate(ModAttachments.MOB_AI_STATE).lastSystem1DispatchTime()
+		));
+
+		int maxInFlight = Math.max(1, config.maxInFlight);
+		long now = System.currentTimeMillis();
+		for (Mob mob : candidates) {
+			if (inFlight.get() >= maxInFlight) {
+				break;
+			}
+			dispatch(mob, mob.getAttachedOrCreate(ModAttachments.MOB_AI_STATE), now);
+		}
 	}
 
-	private void considerMob(Mob mob) {
+	/**
+	 * Applies the skip and rule routes. Returns true only if the mob needs a model call and is
+	 * eligible for one right now.
+	 */
+	private boolean considerMob(Mob mob) {
 		int interval = Math.max(1, config.tickInterval);
 		if (Math.floorMod(mob.getUUID().hashCode() + tickCounter, interval) != 0) {
-			return;
+			return false;
+		}
+
+		if (config.activeRadiusBlocks > 0
+			&& mob.level().getNearestPlayer(mob, config.activeRadiusBlocks) == null) {
+			return false;
 		}
 
 		MobAiState state = mob.getAttachedOrCreate(ModAttachments.MOB_AI_STATE);
 		if (state.isSystem1InFlight()) {
-			return;
+			return false;
+		}
+
+		if (mob.getTarget() == null) {
+			applyNoTargetRule(mob, state);
+			return false;
 		}
 
 		long now = System.currentTimeMillis();
 		long minSpacing = config.provider == ProviderType.CLOUD ? config.minSpacingCloudMs : config.minSpacingLocalMs;
-		if (now - state.lastSystem1DispatchTime() < minSpacing) {
+		return now - state.lastSystem1DispatchTime() >= minSpacing;
+	}
+
+	/**
+	 * Only writes state (and a log row) on a change: repeatedly "re-applying" the same action would
+	 * grow the same-action streak and trip the stuck-action escalation to System 2 for no reason.
+	 */
+	private void applyNoTargetRule(Mob mob, MobAiState state) {
+		if (state.currentAction() == NO_TARGET_ACTION) {
 			return;
 		}
-
-		dispatch(mob, state, now);
+		JsonObject row = trainingLogger != null
+			? trainingLogger.snapshot(mob, state, null, System.currentTimeMillis())
+			: null;
+		state.updateAction(NO_TARGET_ACTION);
+		if (row != null) {
+			trainingLogger.recordRule(row, NO_TARGET_ACTION, "no_target");
+		}
 	}
 
 	private void dispatch(Mob mob, MobAiState state, long now) {
 		state.setSystem1InFlight(true);
 		state.markSystem1Dispatched(now);
+		int inFlightAtDispatch = inFlight.incrementAndGet();
 
 		PromptRequest request = System1PromptBuilder.build(mob, state, config);
-		JsonObject trainingRow =
-			trainingLogger != null ? trainingLogger.snapshot(mob, state, request, now) : null;
+		JsonObject trainingRow = null;
+		if (trainingLogger != null) {
+			trainingRow = trainingLogger.snapshot(mob, state, request, now);
+			// How many calls were outstanding (including this one): the direct measure of queueing.
+			trainingRow.addProperty("in_flight_at_dispatch", inFlightAtDispatch);
+		}
+		JsonObject row = trainingRow;
 
 		CompletableFuture<String> future;
 		try {
@@ -94,9 +168,13 @@ public class System1Scheduler {
 			future = CompletableFuture.failedFuture(e);
 		}
 
-		future.whenComplete((response, throwable) ->
-			runOnServerThread(mob, () -> applyResult(mob, response, throwable, trainingRow))
-		);
+		future.whenComplete((response, throwable) -> {
+			// Release the slot on the HTTP thread, before waiting for the server thread, so the
+			// cap measures requests to the model rather than the server's own tick backlog.
+			inFlight.decrementAndGet();
+			long respondedAt = System.currentTimeMillis();
+			runOnServerThread(mob, () -> applyResult(mob, response, throwable, row, respondedAt));
+		});
 	}
 
 	private void runOnServerThread(Mob mob, Runnable task) {
@@ -105,16 +183,22 @@ public class System1Scheduler {
 		}
 	}
 
-	private void applyResult(Mob mob, String response, Throwable throwable, JsonObject trainingRow) {
+	private void applyResult(
+		Mob mob, String response, Throwable throwable, JsonObject trainingRow, long respondedAtMs
+	) {
 		if (!mob.isAlive()) {
 			return;
 		}
 
 		MobAiState state = mob.getAttachedOrCreate(ModAttachments.MOB_AI_STATE);
 		state.setSystem1InFlight(false);
+		long appliedAt = System.currentTimeMillis();
 
 		if (throwable != null) {
 			EnvironmentAI.LOGGER.debug("System 1 call failed for {}: {}", mob.getUUID(), throwable.toString());
+			if (trainingLogger != null && trainingRow != null) {
+				trainingLogger.recordError(trainingRow, throwable, state.currentAction(), respondedAtMs, appliedAt);
+			}
 			return;
 		}
 
@@ -123,7 +207,7 @@ public class System1Scheduler {
 		state.updateAction(newAction);
 
 		if (trainingLogger != null && trainingRow != null) {
-			trainingLogger.record(trainingRow, response, parsed, newAction, System.currentTimeMillis());
+			trainingLogger.recordModel(trainingRow, response, parsed, newAction, respondedAtMs, appliedAt);
 		}
 
 		checkForSignificantEvent(mob, state);
