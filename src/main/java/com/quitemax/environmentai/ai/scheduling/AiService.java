@@ -49,10 +49,10 @@ public final class AiService {
 		TrainingDataLogger villagerLogger = createLogger(config, "villager", config.system3, stamp);
 		this.dialogueService = new DialogueService(system3Provider, config.system3, villagerLogger);
 		this.conversationManager = new ConversationManager(dialogueService);
+		ProactiveVoice voice = new ProactiveVoice(dialogueService, config.villagerAmbientChatter);
 		this.storyTracker = new StoryTracker(new NarratorService(
 			system3Provider, config.system3, createLogger(config, "narrator", config.system3, stamp)
-		));
-		ProactiveVoice voice = new ProactiveVoice(dialogueService, config.villagerAmbientChatter);
+		), voice);
 		this.moodService = config.villagerMoodEnabled
 			? new VillagerMoodService(voice, villagerLogger)
 			: null;

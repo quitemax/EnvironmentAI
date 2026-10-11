@@ -1,8 +1,12 @@
 package com.quitemax.environmentai.ai.story;
 
+import com.quitemax.environmentai.EnvironmentAI;
 import com.quitemax.environmentai.ai.story.NarrationLedger.Kind;
 import com.quitemax.environmentai.ai.story.PlayerStateRules.Facts;
 import com.quitemax.environmentai.ai.story.PlayerStateRules.State;
+import com.quitemax.environmentai.ai.villager.ProactiveVoice;
+import com.quitemax.environmentai.ai.villager.VoiceLedger;
+import com.quitemax.environmentai.config.EnvironmentAIConfig;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -51,14 +55,17 @@ public final class StoryTracker {
 		boolean nearDeathArmed = true;
 		final Director.Tension tension = new Director.Tension();
 		long lastNudgeTick = NEVER;
+		long lastRumourTick = NEVER;
 		State state = new State(PlayerStateRules.STEADY, "");
 	}
 
 	private final NarratorService narrator;
+	private final ProactiveVoice voice;
 	private final Map<UUID, Log> logs = new HashMap<>();
 
-	public StoryTracker(NarratorService narrator) {
+	public StoryTracker(NarratorService narrator, ProactiveVoice voice) {
 		this.narrator = narrator;
+		this.voice = voice;
 	}
 
 	public void register() {
@@ -177,6 +184,20 @@ public final class StoryTracker {
 			String hint = ProgressLadder.next(log.completed).map(ProgressLadder.Goal::hint).orElse("");
 			if (narrator.narrate(player, Kind.QUIET, "", hint, log.state, false)) {
 				log.lastNudgeTick = now;
+			}
+		}
+		// Next lever, only at the full setting: a villager in earshot mentions it as gossip.
+		EnvironmentAIConfig config = EnvironmentAI.config();
+		if (config != null && config.directorIntensity.voices()
+			&& Director.mayRumour(log.tension, now, now - log.lastProgressTick,
+				log.lastNudgeTick > log.lastProgressTick, now - log.lastNudgeTick,
+				now - log.lastRumourTick, ProgressLadder.done(log.completed))) {
+			Optional<ProgressLadder.Goal> next = ProgressLadder.next(log.completed);
+			if (next.isPresent() && voice.offerNear(VoiceLedger.Reason.RUMOUR,
+				"You have heard a rumour, and it comes to mind: \"" + next.get().rumour() + "\" "
+					+ "Mention it in passing, as gossip you are passing on, not as an order.",
+				player)) {
+				log.lastRumourTick = now;
 			}
 		}
 		if (log.wasNight && !night && overworld && !log.state.name().equals(PlayerStateRules.SHAKEN)) {

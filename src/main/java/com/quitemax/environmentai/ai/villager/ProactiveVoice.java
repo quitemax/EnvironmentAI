@@ -67,6 +67,31 @@ public final class ProactiveVoice {
 		dialogue.speakProactive(speaker.get(), player, situation, group.size(), reason.name().toLowerCase());
 	}
 
+	/**
+	 * Like {@link #offer}, for a line that is not about any villager's own experience (a rumour):
+	 * the speaker is simply the nearest available villager in earshot of the player.
+	 *
+	 * @return whether a villager was asked to speak
+	 */
+	public boolean offerNear(Reason reason, String situation, ServerPlayer player) {
+		if (!enabled || player.isRemoved() || !(player.level() instanceof net.minecraft.server.level.ServerLevel level)) {
+			return false;
+		}
+		if (ConversationManager.isInConversation(player.getUUID())) {
+			return false;
+		}
+		Optional<Villager> speaker = level
+			.getEntitiesOfClass(Villager.class, player.getBoundingBox().inflate(HEARING_RADIUS), this::isAvailable)
+			.stream()
+			.filter(villager -> villager.hasLineOfSight(player))
+			.min(Comparator.comparingDouble(player::distanceTo));
+		if (speaker.isEmpty() || !ledger.tryReserve(player.getUUID(), reason, System.currentTimeMillis())) {
+			return false;
+		}
+		dialogue.speakProactive(speaker.get(), player, situation, 1, reason.name().toLowerCase());
+		return true;
+	}
+
 	private boolean isAvailable(Villager villager) {
 		if (!villager.isAlive() || villager.isSleeping() || villager.isTrading()) {
 			return false;

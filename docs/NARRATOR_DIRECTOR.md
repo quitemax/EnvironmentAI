@@ -1,7 +1,7 @@
 # Player state, narrator and director: design notes
 
 Status: **N0, N1 and N2 implemented** (player state, progress tracking, narrator captions, and the
-director's tension budget with paced hints); the director's levers on the world (N3) are not started. Decisions taken: noir is the default voice and hints are
+director's tension budget with paced hints); the director's voices in the world (N3, first lever) are built; pressure on mobs is not. Decisions taken: noir is the default voice and hints are
 on by default, both changeable at runtime; the narrator sees every player. The idea: the game tracks the *player's* state from recent
 events the way villagers track their mood; a comic-book **narrator** comments on it in caption boxes;
 and a **director**, in the spirit of Alien: Isolation's, paces and steers the whole run through
@@ -151,6 +151,21 @@ the gate), and `/environmentai inspect <player>` for state and progress.
 - **Untested in game:** the rules were exercised outside it; the numbers are first guesses and need
   a playtest for pacing.
 
+## What was built (N3, first lever)
+
+- **Rumours** (only at the `full` setting): once the narrator's hint has been shown and half a slack
+  has passed without progress, a villager within earshot of the player, at ease, passes on a plain
+  rumour about the next goal, as gossip and not as an order. At most one per slack, and a ledger
+  reason of its own (15 minute cooldown) so it cannot stack on greetings and warnings.
+- **Order of intrusion is kept:** narration first, then voices. A rumour never comes before a hint.
+- **Plainer than the hint:** every goal carries a `rumour` next to its oblique `hint`, because a
+  villager would say "there is iron in the hills", not a noir image. These are hand-written facts;
+  the model only phrases them in the villager's voice.
+- **Same machinery:** `ProactiveVoice.offerNear` reuses the villager gate, never speaks over a
+  conversation, and respects `villagerAmbientChatter`.
+- **Not built:** pressure on mobs (lever 3). That one changes how dangerous the world is, so it needs
+  a decision about how, not just code.
+
 ## Suggested build order
 
 | Step | Delivers | Verifiable how |
@@ -158,7 +173,7 @@ the gate), and `/environmentai inspect <player>` for state and progress.
 | N0 | Player state rules and a progress tracker (advancements polled), `/environmentai inspect player` | Pure rules tested outside the game, like the mood ladder |
 | N1 | Narrator captions: HUD box, payload, six to eight triggers, gate | In game; gate tested outside |
 | N2 | Director v1: stage model and tension budget, hints through the narrator only (built, pacing untried) | Rules tested; in-game for pacing |
-| N3 | Director levers into villagers and mobs | In game, behind the intensity setting |
+| N3 | Director levers into villagers and mobs (villager rumours built; mob pressure not) | In game, behind the intensity setting |
 | N4 | Seeded arcs and personas | Same seed gives the same arc |
 
 N0 and N1 are useful alone and reuse the most existing machinery.

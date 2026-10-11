@@ -112,7 +112,7 @@ public final class EnvironmentAiCommand {
 		String name = StringArgumentType.getString(context, "level");
 		DirectorIntensity level = DirectorIntensity.parse(name);
 		if (level == null) {
-			context.getSource().sendFailure(Component.literal("Unknown level: " + name + " (off, narration, hints)"));
+			context.getSource().sendFailure(Component.literal("Unknown level: " + name + " (off, narration, hints, full)"));
 			return 0;
 		}
 		EnvironmentAI.config().directorIntensity = level;

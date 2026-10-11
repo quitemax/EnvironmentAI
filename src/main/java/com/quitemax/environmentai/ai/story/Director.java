@@ -142,6 +142,25 @@ public final class Director {
 	}
 
 	/**
+	 * Whether a villager may let a rumour slip. The narrator comes first: only once a hint has been
+	 * shown since the last progress and had half a slack to be acted on, and then no more often than
+	 * one slack apart.
+	 *
+	 * @param nudgedSinceProgress whether the narrator has hinted since the last goal was completed
+	 */
+	public static boolean mayRumour(
+		Tension tension, long now, long ticksSinceProgress, boolean nudgedSinceProgress,
+		long ticksSinceNudge, long ticksSinceRumour, int done
+	) {
+		long slack = slackTicks(done);
+		return nudgedSinceProgress
+			&& tension.atEase(now)
+			&& ticksSinceProgress > slack
+			&& ticksSinceNudge > slack / 2
+			&& ticksSinceRumour > slack;
+	}
+
+	/**
 	 * Whether the director allows a nudge now.
 	 *
 	 * @param ticksSinceProgress ticks since a ladder goal was last completed

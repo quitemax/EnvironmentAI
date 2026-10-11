@@ -22,7 +22,9 @@ public final class VoiceLedger {
 		MOOD(60_000),
 		THANKS(120_000),
 		WARNING(120_000),
-		GREETING(300_000);
+		GREETING(300_000),
+		/** The director's gossip about the next goal: rare, and well apart. */
+		RUMOUR(900_000);
 
 		private final long cooldownMs;
 

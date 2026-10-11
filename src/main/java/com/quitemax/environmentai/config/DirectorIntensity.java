@@ -12,7 +12,10 @@ public enum DirectorIntensity {
 	NARRATION,
 	/** Narration, plus indirect hints toward the next goal when the player has stalled. */
 	HINTS,
-	/** Reserved: hints plus pressure applied to the world (not built yet). */
+	/**
+	 * Hints, plus voices in the world: villagers near the player let a rumour slip about the next
+	 * goal once the narrator's hint has gone unheeded. Pressure on mobs is not built yet.
+	 */
 	FULL;
 
 	public boolean narrates() {
@@ -21,6 +24,10 @@ public enum DirectorIntensity {
 
 	public boolean hints() {
 		return this == HINTS || this == FULL;
+	}
+
+	public boolean voices() {
+		return this == FULL;
 	}
 
 	public static DirectorIntensity parse(String name) {

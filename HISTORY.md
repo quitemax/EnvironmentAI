@@ -227,3 +227,10 @@ smoke test only proved the mixin *applied* cleanly, not that it *fired* on the m
   errors, a handful of small model calls, millisecond latencies and a clean exit at 00:01:37; the
   hard reset (Kernel-Power 41) came at 00:06, after the game had closed, so the cause is outside the
   mod.
+
+## 2026-10-12 — Villager rumours (first N3 lever)
+
+- At the `full` setting the director can now use villagers as a voice: after a missed narrator hint,
+  a villager in earshot passes on a plain rumour about the next goal. One per slack, gated by the
+  existing voice ledger, never over a conversation. Every goal now carries a hand-written `rumour`
+  beside its oblique hint. Mob pressure is deliberately left for a separate decision.
