@@ -72,6 +72,21 @@ public class ModelTierConfig {
 		return config;
 	}
 
+	public static ModelTierConfig defaultSystem3() {
+		ModelTierConfig config = new ModelTierConfig();
+		config.provider = ProviderType.LOCAL;
+		config.model = "llama3.2:3b";
+		config.temperature = 0.8;
+		// The reply schema bounds output to ~280 characters (~80 tokens); this is margin.
+		config.maxTokens = 160;
+		// A person is waiting on this, but a short pause reads as the villager thinking.
+		config.timeoutMs = 30_000;
+		// Dialogue is never decided by sight of a target, so these combat-tier knobs do not apply.
+		config.awarenessRadiusBlocks = 0;
+		config.intimidationEnabled = false;
+		return config;
+	}
+
 	public static ModelTierConfig defaultSystem2() {
 		ModelTierConfig config = new ModelTierConfig();
 		config.provider = ProviderType.CLOUD;

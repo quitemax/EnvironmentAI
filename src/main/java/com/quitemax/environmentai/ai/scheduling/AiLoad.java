@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class AiLoad {
 	public static final AtomicInteger SYSTEM1_IN_FLIGHT = new AtomicInteger();
 	public static final AtomicInteger SYSTEM2_IN_FLIGHT = new AtomicInteger();
+	public static final AtomicInteger SYSTEM3_IN_FLIGHT = new AtomicInteger();
 
 	/**
 	 * Model calls are held back for this many server ticks after a world starts. Logged data showed

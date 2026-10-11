@@ -3,6 +3,11 @@ package com.quitemax.environmentai.config;
 public class EnvironmentAIConfig {
 	public ModelTierConfig system1 = ModelTierConfig.defaultSystem1();
 	public ModelTierConfig system2 = ModelTierConfig.defaultSystem2();
+	/**
+	 * System 3: dialogue (villagers, and later any NPC you talk to). Not latency-critical and the
+	 * cheapest tier to run in the cloud, so it is configured separately from the combat tiers.
+	 */
+	public ModelTierConfig system3 = ModelTierConfig.defaultSystem3();
 
 	/**
 	 * Thread pool sizes for each tier's model-call executor. System 1 is the high-volume tier, so
@@ -10,6 +15,7 @@ public class EnvironmentAIConfig {
 	 */
 	public int system1ExecutorThreads = 4;
 	public int system2ExecutorThreads = 2;
+	public int system3ExecutorThreads = 1;
 
 	public boolean debugLogging = false;
 

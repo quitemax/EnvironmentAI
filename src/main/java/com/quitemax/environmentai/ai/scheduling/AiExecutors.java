@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * One bounded thread pool (and one {@link HttpClient} bound to it) per AI tier, so a slow
- * System 2 round-trip can never starve System 1 throughput regardless of whether either tier is
+ * System 2 or dialogue round-trip can never starve System 1 throughput regardless of whether either tier is
  * local or cloud.
  * Scoped to the whole game process (constructed once in {@code onInitialize}), not to any single
  * world — threads are daemon threads, so they never need an explicit shutdown; tearing them down
@@ -19,13 +19,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class AiExecutors {
 	private final HttpClient system1HttpClient;
 	private final HttpClient system2HttpClient;
+	private final HttpClient system3HttpClient;
 
-	public AiExecutors(int system1Threads, int system2Threads) {
+	public AiExecutors(int system1Threads, int system2Threads, int system3Threads) {
 		this.system1HttpClient = httpClient(
 			Executors.newFixedThreadPool(system1Threads, threadFactory("environmentai-system1"))
 		);
 		this.system2HttpClient = httpClient(
 			Executors.newFixedThreadPool(system2Threads, threadFactory("environmentai-system2"))
+		);
+		this.system3HttpClient = httpClient(
+			Executors.newFixedThreadPool(system3Threads, threadFactory("environmentai-system3"))
 		);
 	}
 
@@ -35,6 +39,10 @@ public final class AiExecutors {
 
 	public HttpClient system2HttpClient() {
 		return system2HttpClient;
+	}
+
+	public HttpClient system3HttpClient() {
+		return system3HttpClient;
 	}
 
 	private static HttpClient httpClient(ExecutorService pool) {

@@ -1,6 +1,7 @@
 package com.quitemax.environmentai.ai.scheduling;
 
 import com.quitemax.environmentai.EnvironmentAI;
+import com.quitemax.environmentai.ai.dialogue.DialogueService;
 import com.quitemax.environmentai.ai.provider.ModelProvider;
 import com.quitemax.environmentai.ai.provider.ProviderFactory;
 import com.quitemax.environmentai.ai.training.TrainingDataLogger;
@@ -17,12 +18,16 @@ import java.time.format.DateTimeFormatter;
 public final class AiService {
 	private final System1Scheduler system1Scheduler;
 	private final System2TriggerManager system2TriggerManager;
+	private final DialogueService dialogueService;
 
 	public AiService(EnvironmentAIConfig config) {
-		AiExecutors executors = new AiExecutors(config.system1ExecutorThreads, config.system2ExecutorThreads);
+		AiExecutors executors = new AiExecutors(
+			config.system1ExecutorThreads, config.system2ExecutorThreads, config.system3ExecutorThreads
+		);
 
 		ModelProvider system1Provider = ProviderFactory.create(config.system1, executors.system1HttpClient());
 		ModelProvider system2Provider = ProviderFactory.create(config.system2, executors.system2HttpClient());
+		ModelProvider system3Provider = ProviderFactory.create(config.system3, executors.system3HttpClient());
 
 		String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
 		this.system1Scheduler = new System1Scheduler(
@@ -30,6 +35,9 @@ public final class AiService {
 		);
 		this.system2TriggerManager = new System2TriggerManager(
 			system2Provider, config.system2, createLogger(config, "system2", config.system2, stamp)
+		);
+		this.dialogueService = new DialogueService(
+			system3Provider, config.system3, createLogger(config, "villager", config.system3, stamp)
 		);
 	}
 
@@ -55,6 +63,10 @@ public final class AiService {
 			EnvironmentAI.LOGGER.error("Could not open {} log {}; logging disabled", tier, file, e);
 			return null;
 		}
+	}
+
+	public DialogueService dialogue() {
+		return dialogueService;
 	}
 
 	public void start() {

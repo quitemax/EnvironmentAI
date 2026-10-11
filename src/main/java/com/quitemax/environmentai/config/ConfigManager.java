@@ -57,6 +57,7 @@ public final class ConfigManager {
 	private static void validate(EnvironmentAIConfig config, Logger logger) {
 		validateTier("system1", config.system1, logger);
 		validateTier("system2", config.system2, logger);
+		validateTier("system3", config.system3, logger);
 	}
 
 	private static void validateTier(String name, ModelTierConfig tier, Logger logger) {

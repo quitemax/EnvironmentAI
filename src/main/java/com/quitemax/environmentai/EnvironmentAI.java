@@ -32,9 +32,11 @@ public class EnvironmentAI implements ModInitializer {
 		config = ConfigManager.load(LOGGER);
 		ModAttachments.register();
 
-		new AiService(config).start();
+		AiService aiService = new AiService(config);
+		aiService.start();
 		CommandRegistrationCallback.EVENT.register(
-			(dispatcher, registryAccess, environment) -> EnvironmentAiCommand.register(dispatcher)
+			(dispatcher, registryAccess, environment) ->
+				EnvironmentAiCommand.register(dispatcher, aiService.dialogue())
 		);
 
 		LOGGER.info("EnvironmentAI initialized");
