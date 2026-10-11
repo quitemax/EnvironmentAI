@@ -4,7 +4,7 @@ import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.goal.GoalSelector;
 
 /**
- * Adds the six System 1 action goals to a mob's goal selector.
+ * Adds the System 1 action goals to a mob's goal selector.
  *
  * <p>This runs from the entity-load event rather than from a mixin on {@code Mob.registerGoals}:
  * {@code Zombie}, {@code Spider}, {@code AbstractSkeleton} and others override
@@ -33,6 +33,7 @@ public final class SystemGoals {
 
 		selector.addGoal(PRIORITY, new AttackActionGoal(mob));
 		selector.addGoal(PRIORITY, new FleeActionGoal(mob));
+		selector.addGoal(PRIORITY, new KeepDistanceActionGoal(mob));
 		selector.addGoal(PRIORITY, new ApproachActionGoal(mob));
 		selector.addGoal(PRIORITY, new GuardActionGoal(mob));
 		selector.addGoal(PRIORITY, new WanderActionGoal(mob));

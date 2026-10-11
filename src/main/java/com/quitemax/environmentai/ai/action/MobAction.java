@@ -9,7 +9,12 @@ public enum MobAction {
 	APPROACH,
 	GUARD,
 	WANDER,
-	IDLE;
+	IDLE,
+	/**
+	 * Ranged mobs only: back away when the target gets close, otherwise leave the mob to its
+	 * vanilla ranged attack. Appended last so persisted names and ordinals stay stable.
+	 */
+	KEEP_DISTANCE;
 
 	public static final Codec<MobAction> CODEC = Codec.STRING.flatXmap(
 		MobAction::parse,
