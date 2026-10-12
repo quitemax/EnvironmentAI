@@ -80,6 +80,83 @@ public final class VillagerMoodService {
 		ServerTickEvents.END_SERVER_TICK.register(this::onServerTick);
 	}
 
+	// --- the bell ------------------------------------------------------------------------------
+
+	/** Vanilla's own hearing radius for a bell. */
+	private static final double BELL_HEARING = 32.0;
+	/** Hostile creatures this close to the bell make a ring an alarm. */
+	private static final double BELL_DANGER_RADIUS = 40.0;
+	/** Villagers within this walk over to the bell when it is rung with no danger about. */
+	private static final double BELL_GATHER_RADIUS = 20.0;
+	private static final long PRANK_WINDOW_TICKS = 1_200;
+	private static final int PRANK_RINGS = 4;
+
+	private final Map<Long, java.util.ArrayDeque<Long>> bellRings = new ConcurrentHashMap<>();
+
+	/**
+	 * Called by the bell mixin on every real ring. Villagers that hear it take the event into their
+	 * mood: a ring with danger near is an alarm, a bell rung over and over for nothing is a nuisance.
+	 * One of them may remark on it, and in the quiet case those close by wander over, as they would
+	 * to the meeting point the bell marks in vanilla.
+	 */
+	public static void onBellRung(ServerLevel level, net.minecraft.core.BlockPos pos, Entity ringer) {
+		if (instance != null) {
+			instance.handleBell(level, pos, ringer);
+		}
+	}
+
+	private void handleBell(ServerLevel level, net.minecraft.core.BlockPos pos, Entity ringer) {
+		long now = level.getGameTime();
+		java.util.ArrayDeque<Long> rings = bellRings.computeIfAbsent(pos.asLong(), key -> new java.util.ArrayDeque<>());
+		rings.addLast(now);
+		while (!rings.isEmpty() && now - rings.peekFirst() > PRANK_WINDOW_TICKS) {
+			rings.removeFirst();
+		}
+
+		var box = new net.minecraft.world.phys.AABB(pos).inflate(BELL_HEARING);
+		List<Villager> listeners = level.getEntitiesOfClass(Villager.class, box,
+			villager -> villager.isAlive() && villager.distanceToSqr(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5)
+				<= BELL_HEARING * BELL_HEARING);
+		if (listeners.isEmpty()) {
+			return;
+		}
+
+		boolean danger = !level.getEntitiesOfClass(LivingEntity.class,
+			new net.minecraft.world.phys.AABB(pos).inflate(BELL_DANGER_RADIUS),
+			entity -> entity instanceof Enemy && entity.isAlive()).isEmpty();
+		boolean prank = !danger && rings.size() >= PRANK_RINGS;
+		String kind = danger ? VillagerMood.BELL_ALARM : prank ? VillagerMood.BELL_PRANK : null;
+		String text = danger ? "heard the bell rung while danger was near"
+			: prank ? "heard the bell rung again and again for no reason" : "heard the village bell ring";
+
+		for (Villager villager : listeners) {
+			if (kind != null) {
+				record(villager, kind, text);
+			}
+			if (!danger && !prank && !villager.isSleeping() && !villager.isTrading()
+				&& !com.quitemax.environmentai.ai.dialogue.ConversationManager.isTalking(villager.getUUID())
+				&& villager.distanceToSqr(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5)
+					<= BELL_GATHER_RADIUS * BELL_GATHER_RADIUS) {
+				villager.getBrain().setMemoryWithExpiry(
+					net.minecraft.world.entity.ai.memory.MemoryModuleType.WALK_TARGET,
+					new net.minecraft.world.entity.ai.memory.WalkTarget(pos, 0.6F, 3), 200L
+				);
+			}
+		}
+
+		if (ringer instanceof ServerPlayer player) {
+			String situation = danger
+				? "The village bell was just rung and there are hostile creatures about. It is an alarm. "
+					+ "Say one short, alarmed line to the traveler."
+				: prank
+					? "The village bell has been rung again and again for no reason, and you are getting "
+						+ "tired of it. Say one short, irritated line to the traveler."
+					: "The traveler just rang the village bell and nothing seems wrong. Say one short, "
+						+ "curious or amused line.";
+			voice.offerNear(VoiceLedger.Reason.BELL, situation, player);
+		}
+	}
+
 	// --- event sources -------------------------------------------------------------------------
 
 	/** For events that originate outside the scan and vanilla's reputation channel (conversations). */

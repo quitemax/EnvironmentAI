@@ -256,3 +256,10 @@ smoke test only proved the mixin *applied* cleanly, not that it *fired* on the m
 - Farm animals move away from hostile mobs within 8 blocks, through vanilla's own avoid goal with a
   predicate and a half-second throttle (the stock goal queries every tick).
 - Loot and gear for mobs was set aside by decision; interactions among animals stay vanilla.
+
+## 2026-10-12 — The village bell
+
+- Villagers now react to the bell: mood events for an alarm (danger near) and for a prank (rung
+  repeatedly for nothing), one remark through the voice gate, and a short walk over to the bell when
+  it is rung quietly. Vanilla's own hiding is left alone. Hooked with a mixin on the four-argument
+  `BellBlock.attemptToRing`, which every ring goes through. Compiled, not yet booted.

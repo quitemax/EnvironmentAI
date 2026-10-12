@@ -19,6 +19,10 @@ public final class VillagerMood {
 	public static final String CURED = "cured";
 	public static final String THREAT = "threat";
 	public static final String THREATENED = "threatened";
+	/** The village bell rang while a hostile creature was near: an alarm. */
+	public static final String BELL_ALARM = "bell_alarm";
+	/** The bell kept being rung with nothing wrong. */
+	public static final String BELL_PRANK = "bell_prank";
 	/** A warm exchange with a player: eases fear and anger left over from earlier events. */
 	public static final String REASSURED = "reassured";
 
@@ -36,6 +40,8 @@ public final class VillagerMood {
 	private static final long ANGER_WINDOW = 6_000;
 	private static final long CONTENT_WINDOW = 2_400;
 	private static final long REASSURED_WINDOW = 2_400;
+	private static final long BELL_ALARM_WINDOW = 600;
+	private static final long BELL_PRANK_WINDOW = 1_800;
 
 	public record Mood(String name, String reason) {
 	}
@@ -93,6 +99,12 @@ public final class VillagerMood {
 			return golemNear
 				? new Mood(UNEASY, "a hostile creature is close, though the iron golem is near")
 				: new Mood(AFRAID, "a hostile creature is close and there is no golem to protect you");
+		}
+		if (state.hasRecent(BELL_ALARM, now, BELL_ALARM_WINDOW)) {
+			return new Mood(UNEASY, "the alarm bell was rung");
+		}
+		if (state.hasRecent(BELL_PRANK, now, BELL_PRANK_WINDOW)) {
+			return new Mood(UNEASY, "someone keeps ringing the bell for no reason");
 		}
 		if (state.hasRecent(CURED, now, CONTENT_WINDOW * 2)) {
 			return new Mood(CONTENT, "a villager was cured of the zombie curse");

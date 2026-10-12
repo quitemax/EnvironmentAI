@@ -22,6 +22,13 @@ interactions among animals, which stay vanilla.
   rabbits, horses and similar move away from a hostile mob within 8 blocks, checked every half
   second per animal rather than every tick. Endermen, silverfish and endermites do not count.
   Predators (wolf, fox, bear) are not touched.
+- **The bell** (`BellRingMixin`, `VillagerMoodService.onBellRung`): every real ring is seen. Villagers
+  within 32 blocks take it into their mood: with a hostile creature within 40 blocks it is an
+  *alarm* (uneasy, for half a minute), rung four times in a minute with nothing wrong it is a
+  *nuisance* (uneasy, for a minute and a half), and a single quiet ring is only remembered in what
+  they have heard lately. One villager in earshot of the player may remark, through the voice gate
+  with its own 30 second reason. In the quiet case villagers within 20 blocks wander over to the bell
+  for a few seconds; in an alarm the vanilla hiding behaviour is left alone.
 - **Switches:** `squadTactics`, `squadCaptainGlow`, `animalsAvoidThreats` in the config file, all on.
 - **Not verified in game:** the planner's rules are exercised outside the game; how it feels, whether
   the paths hold and the glow reads well are for a playtest.
@@ -214,7 +221,7 @@ rather than a pile of special cases:
 | M1 | Animals shy from hostile mobs (done, small table in `Relations`); a fuller faction table later | In game, watching animals |
 | M2 | Squads with a captain, flanking and morale (done, untried in game) | Rules tested outside the game; in game for feel |
 | M3 | Biome variants and loadouts with defined drops | Drop-rate logging; one biome first |
-| M4 | Bell as a villager event | In game |
+| M4 | Bell as a villager event (done, untried in game; the mixin needs a boot to confirm) | In game |
 | M5 | Pillager scouting and captains | In game, raids |
 | M6 | Nether cast: piglin hierarchy and barter memory | In game, bastion |
 | M7 | Spider temperament and skeleton mounting | Careful playtest, hard off switch |

@@ -24,7 +24,9 @@ public final class VoiceLedger {
 		WARNING(120_000),
 		GREETING(300_000),
 		/** The director's gossip about the next goal: rare, and well apart. */
-		RUMOUR(900_000);
+		RUMOUR(900_000),
+		/** A bell was rung: one villager remarks, however many heard it. */
+		BELL(30_000);
 
 		private final long cooldownMs;
 
