@@ -245,3 +245,14 @@ smoke test only proved the mixin *applied* cleanly, not that it *fired* on the m
   villagers and the bell, pillagers, the Nether cast, skeleton-spider pairing, and a single relations
   table for mobs and animals. Design only; the open questions (loot scope, difficulty defaults) are
   listed there.
+
+## 2026-10-12 — Squads with a captain, and animals that shy from threats
+
+- Hostile mobs hunting the same player now plan as a squad: a captain (glows, kept while alive),
+  a pinner, up to three flankers sent to the sides, a reserve that holds a ring, and ranged members
+  spread round the target. A killed captain shakes the rest for fifteen seconds, as a shift of the
+  existing nerve rule, not a new fear system. The planner is pure geometry and was checked outside
+  the game; the feel is untried.
+- Farm animals move away from hostile mobs within 8 blocks, through vanilla's own avoid goal with a
+  predicate and a half-second throttle (the stock goal queries every tick).
+- Loot and gear for mobs was set aside by decision; interactions among animals stay vanilla.

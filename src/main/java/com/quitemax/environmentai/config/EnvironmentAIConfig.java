@@ -63,6 +63,17 @@ public class EnvironmentAIConfig {
 	public boolean villagerAmbientChatter = true;
 
 	/**
+	 * Hostile mobs hunting the same player form a squad (up to six): a captain, a pinner, flankers
+	 * that circle to the sides, and a reserve that holds back. A sturdier fight; turn it off for
+	 * vanilla approach behaviour.
+	 */
+	public boolean squadTactics = true;
+	/** Whether a squad's captain glows, so the player can read who leads. */
+	public boolean squadCaptainGlow = true;
+	/** Whether farm animals shy away from hostile mobs that come near. */
+	public boolean animalsAvoidThreats = true;
+
+	/**
 	 * When true, every completed System 1 decision is appended as a JSON line to
 	 * {@code <game dir>/environmentai/training/system1-<timestamp>.jsonl}, for training a smaller
 	 * decision model later.

@@ -1,8 +1,30 @@
 # Mob behaviour, ecology and relations: design notes
 
-Status: **design only**, written 2026-10-12 from a list of ideas after a playtest. The one thing
-built so far is a fix (see "Found in playtest"). Nothing below is committed to a build order until
-the open questions at the end are answered.
+Status: written 2026-10-12 from a list of ideas after a playtest. **Built so far:** the enderman
+fix, squads with a captain and flanking (M2), and farm animals shying from hostile mobs (the part of
+M1 that was asked for). Everything else is design. Decisions taken: loot is set aside for later;
+squads are a real squad with a captain; for animals, only their reaction to hostile mobs, not
+interactions among animals, which stay vanilla.
+
+## What was built
+
+- **Squads** (`SquadPlanner`, `SquadCoordinator`, `FlankGoal`): hostile mobs hunting the same player
+  within 24 blocks, three to six of them, are planned once a second. The sturdiest is the captain and
+  stays so while it lives; it glows (`squadCaptainGlow`) and, if melee, holds a ring a little back
+  while others fight. The nearest melee member pins, up to three flank to the sides and rear, the rest
+  hold a ring and join as the front thins; ranged members spread evenly so they do not share a line
+  of fire. A member borrows the move flag only while its action is attack, approach or idle, gives up
+  after a few seconds, and then stays off for a moment, so a blocked path costs seconds.
+- **Morale:** members of a squad with a captain are 1.5 braver on the intimidation rule; when the
+  captain is killed, the rest are 3 less brave for fifteen seconds. The existing nerve mechanism, only
+  shifted.
+- **Animals** (`Relations`, `ThreatAvoidanceGoal`, `AnimalReactions`): cows, sheep, pigs, chickens,
+  rabbits, horses and similar move away from a hostile mob within 8 blocks, checked every half
+  second per animal rather than every tick. Endermen, silverfish and endermites do not count.
+  Predators (wolf, fox, bear) are not touched.
+- **Switches:** `squadTactics`, `squadCaptainGlow`, `animalsAvoidThreats` in the config file, all on.
+- **Not verified in game:** the planner's rules are exercised outside the game; how it feels, whether
+  the paths hold and the glow reads well are for a playtest.
 
 The common thread: today every hostile mob is an individual that picks one of six verbs. What is
 missing is everything *between* mobs (groups, factions, prey and predators), everything *about*
@@ -189,8 +211,8 @@ rather than a pile of special cases:
 | Step | Delivers | Verified how |
 |---|---|---|
 | M0 | Enderman fix (done); a table-driven archetype for the rest of the cast so more cases are not code | Call log: no FLEE for endermen |
-| M1 | Faction table and relations scan; animals fleeing creepers; predator/prey made explicit | In game, watching animals |
-| M2 | Squads and `FLANK` for zombies and spiders, behind a flag | Rules tested outside the game; in game for feel |
+| M1 | Animals shy from hostile mobs (done, small table in `Relations`); a fuller faction table later | In game, watching animals |
+| M2 | Squads with a captain, flanking and morale (done, untried in game) | Rules tested outside the game; in game for feel |
 | M3 | Biome variants and loadouts with defined drops | Drop-rate logging; one biome first |
 | M4 | Bell as a villager event | In game |
 | M5 | Pillager scouting and captains | In game, raids |

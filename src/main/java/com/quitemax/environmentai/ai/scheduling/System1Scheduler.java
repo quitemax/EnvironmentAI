@@ -5,6 +5,7 @@ import com.quitemax.environmentai.EnvironmentAI;
 import com.quitemax.environmentai.ai.action.ActionParser;
 import com.quitemax.environmentai.ai.action.MobAction;
 import com.quitemax.environmentai.ai.archetype.MobArchetype;
+import com.quitemax.environmentai.ai.squad.SquadCoordinator;
 import com.quitemax.environmentai.ai.perception.TargetAssessment;
 import com.quitemax.environmentai.ai.prompt.System1PromptBuilder;
 import com.quitemax.environmentai.ai.provider.ModelProvider;
@@ -265,8 +266,8 @@ public class System1Scheduler {
 		}
 
 		TargetAssessment assessment = TargetAssessment.of(mob, target);
-		// Cheap reject before the area query: no archetype's nerve is below 6.
-		if (assessment.threat() < 5.0) {
+		// Cheap reject before the area query: the lowest nerve is 6, and squad morale can take 3 off.
+		if (assessment.threat() < 3.0) {
 			return false;
 		}
 
@@ -274,7 +275,8 @@ public class System1Scheduler {
 			.getEntitiesOfClass(Mob.class, mob.getBoundingBox().inflate(FELLOW_HOSTILE_RADIUS),
 				other -> other != mob && other instanceof Enemy && other.isAlive())
 			.size();
-		double nerve = MobArchetype.of(mob).nerve() + Math.min(MAX_COMPANY_BONUS, fellows * COMPANY_BONUS_EACH);
+		double nerve = MobArchetype.of(mob).nerve() + Math.min(MAX_COMPANY_BONUS, fellows * COMPANY_BONUS_EACH)
+			+ SquadCoordinator.moraleBonus(mob);
 		return assessment.threat() >= (sustaining ? nerve - 1.0 : nerve);
 	}
 

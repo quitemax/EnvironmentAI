@@ -19,6 +19,8 @@ import net.minecraft.world.entity.ai.goal.GoalSelector;
  */
 public final class SystemGoals {
 	private static final int PRIORITY = 0;
+	/** One above the action goals, so a squad move can take the move flag from an unfinished attack. */
+	private static final int SQUAD_PRIORITY = -1;
 
 	private SystemGoals() {
 	}
@@ -31,6 +33,7 @@ public final class SystemGoals {
 			return;
 		}
 
+		selector.addGoal(SQUAD_PRIORITY, new FlankGoal(mob));
 		selector.addGoal(PRIORITY, new AttackActionGoal(mob));
 		selector.addGoal(PRIORITY, new FleeActionGoal(mob));
 		selector.addGoal(PRIORITY, new KeepDistanceActionGoal(mob));

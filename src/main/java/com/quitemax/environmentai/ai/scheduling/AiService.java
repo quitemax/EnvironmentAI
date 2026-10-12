@@ -8,6 +8,8 @@ import com.quitemax.environmentai.ai.provider.ProviderFactory;
 import com.quitemax.environmentai.ai.story.NarratorService;
 import com.quitemax.environmentai.ai.story.StoryTracker;
 import com.quitemax.environmentai.ai.training.TrainingDataLogger;
+import com.quitemax.environmentai.ai.relations.AnimalReactions;
+import com.quitemax.environmentai.ai.squad.SquadCoordinator;
 import com.quitemax.environmentai.ai.villager.ProactiveVoice;
 import com.quitemax.environmentai.ai.villager.VillagerMoodService;
 import com.quitemax.environmentai.config.EnvironmentAIConfig;
@@ -92,6 +94,8 @@ public final class AiService {
 
 	public void start() {
 		MobTracker.register();
+		SquadCoordinator.register();
+		AnimalReactions.register();
 		system1Scheduler.register();
 		system2TriggerManager.register();
 		if (moodService != null) {

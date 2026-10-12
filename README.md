@@ -113,6 +113,11 @@ easily it loses its nerve:
 | `RELENTLESS` | enderman (never intimidated by gear) | ATTACK, APPROACH, GUARD | 99 |
 | `RANGED` | skeleton, pillager, witch, drowned (anything `RangedAttackMob`) | ATTACK, KEEP_DISTANCE, FLEE, APPROACH, GUARD | 6.0 |
 
+**Squads.** Three to six hostile mobs hunting the same player act as a squad: the sturdiest is the
+captain (it glows, and its death shakes the rest), one closes in, up to three circle to the sides,
+the rest hold back, and ranged members spread out. Farm animals shy away from hostile mobs. See
+`docs/MOB_BEHAVIOR.md`; switch off with `squadTactics`, `squadCaptainGlow`, `animalsAvoidThreats`.
+
 `KEEP_DISTANCE` backs a ranged mob off when the target is within 7 blocks and otherwise leaves it
 to its own bow, so it kites rather than going quiet.
 
