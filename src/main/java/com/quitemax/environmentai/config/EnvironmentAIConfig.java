@@ -28,6 +28,11 @@ public class EnvironmentAIConfig {
 	/** The narrator's voice. Change at runtime with {@code /environmentai narrator style <name>}. */
 	public NarratorStyle narratorStyle = NarratorStyle.NOIR;
 	/**
+	 * What story the narrator tells: STANDARD (just comments), ZERO_TO_HERO (an underdog's rise) or
+	 * CHOSEN_ONE (destiny and omens). Change with {@code /environmentai narrator arc <name>}.
+	 */
+	public StoryArc storyArc = StoryArc.STANDARD;
+	/**
 	 * How much the story layer does: OFF (nothing), NARRATION (comments only), HINTS (plus oblique
 	 * nudges when you have stalled). Change with {@code /environmentai narrator hints <level>}.
 	 */

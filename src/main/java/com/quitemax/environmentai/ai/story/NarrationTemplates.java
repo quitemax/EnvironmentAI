@@ -2,6 +2,7 @@ package com.quitemax.environmentai.ai.story;
 
 import com.quitemax.environmentai.ai.story.NarrationLedger.Kind;
 import com.quitemax.environmentai.config.NarratorStyle;
+import com.quitemax.environmentai.config.StoryArc;
 
 /**
  * Captions that need no model. Used when the model is slow, absent or fails, and always for the
@@ -21,7 +22,20 @@ public final class NarrationTemplates {
 	 * @param variant any number; picks among alternatives so repeats do not read identically
 	 */
 	public static String caption(Kind kind, NarratorStyle style, String detail, int variant) {
+		return caption(kind, style, StoryArc.STANDARD, detail, variant);
+	}
+
+	/**
+	 * As above, but in a story arc: the moments an arc is most about (goals, deaths, arrivals,
+	 * levels, dawn) are said in its terms. Other kinds, and other voices, are unchanged.
+	 */
+	public static String caption(Kind kind, NarratorStyle style, StoryArc arc, String detail, int variant) {
 		boolean noir = style == NarratorStyle.NOIR;
+		String[] arcOptions = noir && arc.active() ? arcOptions(kind, arc, detail) : null;
+		if (arcOptions != null) {
+			String text = arcOptions[Math.floorMod(variant, arcOptions.length)];
+			return text.length() > MAX_LENGTH ? text.substring(0, MAX_LENGTH - 1).trim() + "..." : text;
+		}
 		String[] options = switch (kind) {
 			case STAGE -> noir
 				? new String[] {
@@ -137,6 +151,51 @@ public final class NarrationTemplates {
 		};
 		String text = options[Math.floorMod(variant, options.length)];
 		return text.length() > MAX_LENGTH ? text.substring(0, MAX_LENGTH - 1).trim() + "..." : text;
+	}
+
+	/** Null where an arc has nothing of its own to say for this kind. */
+	private static String[] arcOptions(Kind kind, StoryArc arc, String detail) {
+		boolean hero = arc == StoryArc.ZERO_TO_HERO;
+		return switch (kind) {
+			case STAGE -> hero
+				? new String[] {
+					cap(detail) + ". A nobody doesn't get to skip a step, and they didn't.",
+					"Another step up. " + cap(detail) + " would be remembered, if anyone were keeping track.",
+					"They got " + detail + ". Yesterday that would have been impossible."}
+				: new String[] {
+					cap(detail) + ". The signs had said it would come to them.",
+					"They reached " + detail + ", as if it had been waiting.",
+					cap(detail) + ". Destiny had a way of making things easy, and then hard."};
+			case DEATH -> hero
+				? new String[] {
+					"They went down. Heroes do. The ones worth following get back up.",
+					"Dead, for a moment. Even the underdog's story has a low point."}
+				: new String[] {
+					"They fell, and the world refused to let it end there.",
+					"Death took its look. The prophecy wasn't finished with them."};
+			case DIMENSION -> hero
+				? new String[] {
+					"Somewhere a nobody was standing in " + detail + ". They didn't look like one anymore.",
+					"They crossed into " + detail + ". Further than anyone expected."}
+				: new String[] {
+					"They stepped into " + detail + ", and it knew them.",
+					cap(detail) + ". The road had been leading here all along."};
+			case LEVEL -> hero
+				? new String[] {
+					"Level " + detail + ". Nobody started here.",
+					"Level " + detail + ". The climb was starting to show."}
+				: new String[] {
+					"Level " + detail + ". Power gathered, as foretold.",
+					"Level " + detail + ". The omens had underestimated them."};
+			case DAWN -> hero
+				? new String[] {
+					"Dawn. One more night survived, one more day closer to someone worth the name.",
+					"The sun came up on someone a little stronger than the night before."}
+				: new String[] {
+					"Dawn. Another night given up, as if the dark had been told to.",
+					"The sun rose, and it seemed to rise for them."};
+			default -> null;
+		};
 	}
 
 	private static String cap(String text) {

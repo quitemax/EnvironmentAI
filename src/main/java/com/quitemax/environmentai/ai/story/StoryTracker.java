@@ -157,6 +157,11 @@ public final class StoryTracker {
 
 		PlayerFacts facts = PlayerFacts.of(player, level);
 		log.background = facts.describe();
+		EnvironmentAIConfig arcConfig = EnvironmentAI.config();
+		if (arcConfig != null && arcConfig.storyArc.active()) {
+			// Where the run stands in the chosen story, so every caption can be told in its terms.
+			log.background += " " + arcConfig.storyArc.framing(Director.actIndex(log.completed));
+		}
 
 		if (!log.initialized) {
 			// First sight of this player this session: take stock silently. Narrating everything

@@ -170,6 +170,11 @@ another dimension, surviving until dawn, a long quiet stretch. It watches **ever
 tells the others about a player's big moments ("Elsewhere, another traveler fell...").
 
 - **Voice:** `/environmentai narrator style <noir|pulp|deadpan|documentary>`. Noir is the default.
+- **Story:** `/environmentai narrator arc <standard|zero_to_hero|chosen_one>`. The voice is how it
+  talks; the story is what it is telling. `zero_to_hero` frames the run as an underdog's rise, the
+  four acts being a nobody, forged in the deep, tested, and the final fight; `chosen_one` frames it
+  as destiny and omens. `standard` (the default) just comments. It changes how things are said and
+  where the run is said to stand, never what the director does or anything in the world.
 - **How much:** `/environmentai narrator hints <off|narration|hints>`. `hints` (the default) adds
   oblique nudges toward the next goal when you have stalled; `narration` only comments; `off` is
   silent. Both settings are saved to `config/environmentai.json`.

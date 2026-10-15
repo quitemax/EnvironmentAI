@@ -72,7 +72,7 @@ public final class NarratorService {
 		int pick = variant++;
 		String fallback = withHint
 			? hint
-			: NarrationTemplates.caption(kind, config.narratorStyle, detail, pick);
+			: NarrationTemplates.caption(kind, config.narratorStyle, config.storyArc, detail, pick);
 
 		if (major) {
 			announceToOthers(player, kind, detail, pick, now);
@@ -141,7 +141,8 @@ public final class NarratorService {
 		}
 		user.append('\n');
 		if (!background.isEmpty()) {
-			user.append("What you can see of them: ").append(background).append('\n');
+			user.append("What you can see of them").append(config.storyArc.active() ? ", and where the story stands" : "")
+				.append(": ").append(background).append('\n');
 		}
 		if (!hint.isEmpty()) {
 			user.append("Work this in indirectly, as part of the story and never as an instruction: ")
@@ -160,6 +161,7 @@ public final class NarratorService {
 			+ "indirectly, include one concrete image from it. "
 			+ "You may also be told what you can see of the player (level, place, gear, miles); use at "
 			+ "most one such detail, only if it fits the moment, and never list them. "
+			+ (config.storyArc.active() ? config.storyArc.premise() + " " : "")
 			+ "Respond with strict JSON only: {\"caption\": \"...\"}.";
 
 		JsonObject schema = tier.structuredOutput ? captionSchema() : null;

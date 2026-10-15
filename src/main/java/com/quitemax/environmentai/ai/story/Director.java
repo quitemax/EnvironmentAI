@@ -125,20 +125,31 @@ public final class Director {
 
 	/** The run in four acts, derived from the ladder, for debug output and for pacing. */
 	public static String act(Set<String> completed) {
+		return switch (actIndex(completed)) {
+			case 0 -> "the surface";
+			case 1 -> "the deep";
+			case 2 -> "the other side";
+			case 3 -> "the end";
+			default -> "epilogue";
+		};
+	}
+
+	/** 0 to 3 for the four acts, 4 for the epilogue. */
+	public static int actIndex(Set<String> completed) {
 		int done = ProgressLadder.done(completed);
 		if (done >= ProgressLadder.GOALS.size()) {
-			return "epilogue";
+			return 4;
 		}
 		if (done < 4) {
-			return "the surface";
+			return 0;
 		}
 		if (done < 9) {
-			return "the deep";
+			return 1;
 		}
 		if (done < 12) {
-			return "the other side";
+			return 2;
 		}
-		return "the end";
+		return 3;
 	}
 
 	/**

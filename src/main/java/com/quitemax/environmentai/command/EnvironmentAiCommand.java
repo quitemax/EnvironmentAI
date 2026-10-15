@@ -16,6 +16,7 @@ import com.quitemax.environmentai.ai.story.StoryTracker;
 import com.quitemax.environmentai.config.ConfigManager;
 import com.quitemax.environmentai.config.DirectorIntensity;
 import com.quitemax.environmentai.config.NarratorStyle;
+import com.quitemax.environmentai.config.StoryArc;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.Commands;
@@ -61,6 +62,12 @@ public final class EnvironmentAiCommand {
 							java.util.Arrays.stream(NarratorStyle.values())
 								.map(style -> style.name().toLowerCase(Locale.ROOT)), builder))
 						.executes(EnvironmentAiCommand::setStyle)))
+				.then(Commands.literal("arc")
+					.then(Commands.argument("arc", StringArgumentType.word())
+						.suggests((context, builder) -> SharedSuggestionProvider.suggest(
+							java.util.Arrays.stream(StoryArc.values())
+								.map(arc -> arc.name().toLowerCase(Locale.ROOT)), builder))
+						.executes(EnvironmentAiCommand::setArc)))
 				.then(Commands.literal("hints")
 					.then(Commands.argument("level", StringArgumentType.word())
 						.suggests((context, builder) -> SharedSuggestionProvider.suggest(
@@ -105,6 +112,20 @@ public final class EnvironmentAiCommand {
 		EnvironmentAI.config().narratorStyle = style;
 		ConfigManager.save(EnvironmentAI.config(), EnvironmentAI.LOGGER);
 		context.getSource().sendSuccess(() -> Component.literal("Narrator style: " + style.name().toLowerCase(Locale.ROOT)), true);
+		return 1;
+	}
+
+	private static int setArc(CommandContext<CommandSourceStack> context) {
+		String name = StringArgumentType.getString(context, "arc");
+		StoryArc arc = StoryArc.parse(name);
+		if (arc == null) {
+			context.getSource().sendFailure(Component.literal(
+				"Unknown story: " + name + " (standard, zero_to_hero, chosen_one)"));
+			return 0;
+		}
+		EnvironmentAI.config().storyArc = arc;
+		ConfigManager.save(EnvironmentAI.config(), EnvironmentAI.LOGGER);
+		context.getSource().sendSuccess(() -> Component.literal("Story: " + arc.name().toLowerCase(Locale.ROOT)), true);
 		return 1;
 	}
 

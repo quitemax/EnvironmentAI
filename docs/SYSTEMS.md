@@ -228,6 +228,8 @@ is allowed only when the player is *at ease* (low for a minute) and has made no 
 slack; a villager's rumour only after a hint went unheeded for half a slack more, and only at the
 `FULL` setting.
 
+**Story** (`storyArc`): `standard`, `zero_to_hero` or `chosen_one`. Separate from the voice (`narratorStyle`): it adds a premise to the narrator prompt, appends where the run stands (the act, from `Director.actIndex`) to the background, and gives a few kinds (goal, death, arrival, level, dawn) arc-specific fallback captions in the noir voice. Nothing about what is narrated or what the director does changes.
+
 **Intensity** (`directorIntensity`): `OFF` silent; `NARRATION` comments only; `HINTS` adds hints;
 `FULL` adds villager rumours. Pressure on mobs is not built.
 
