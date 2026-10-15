@@ -217,6 +217,8 @@ no client-only mixin config since nothing in this feature needs one.
 
 ## Documentation
 
+- [`docs/STATE.md`](docs/STATE.md) — what state each mob, villager and player carries, and who changes it
+- [`docs/SYSTEMS.md`](docs/SYSTEMS.md) — each system: what wakes it, what it reads, what it changes
 - [`ROADMAP.md`](ROADMAP.md) — planned features and milestones
 - [`HISTORY.md`](HISTORY.md) — project history / changelog of notable decisions and changes
 
