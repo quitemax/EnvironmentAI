@@ -70,6 +70,11 @@ can independently be `LOCAL` or `CLOUD`.
 - **Local (Ollama)**: run an [Ollama](https://ollama.com/) server (defaults to `http://localhost:11434`)
   with the configured `model` pulled.
 
+Reasoning models (Qwen3 and similar) think before answering, which uses up the token budget and
+leaves an empty reply that silently falls back. Set `"think": false` on a tier to turn that off; leave
+it out for other models. `tools/ollama/use-models.ps1` (also on the desktop as "EnvironmentAI models")
+switches each tier's model, restarts the instances and sets this for you.
+
 Cadence/throttling fields (`tickInterval`, `minSpacingLocalMs`, `minSpacingCloudMs` for System 1;
 `debounceMs`, `cooldownMs` for System 2) are also editable in the same file. Each tier has its own
 model-call thread pool (`system1ExecutorThreads`, `system2ExecutorThreads`), so a slow System 2

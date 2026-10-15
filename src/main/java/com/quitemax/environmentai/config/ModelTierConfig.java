@@ -31,6 +31,13 @@ public class ModelTierConfig {
 	 */
 	public boolean structuredOutput = true;
 	/**
+	 * Ollama's "think" switch for reasoning models (Qwen3 and friends think by default, which eats the
+	 * whole token budget and leaves an empty reply). null (the default) sends nothing, which is what
+	 * non-thinking models need: sending it to them is rejected by some Ollama versions. Set false to
+	 * turn thinking off for a reasoning model.
+	 */
+	public Boolean think = null;
+	/**
 	 * Mobs lose their nerve against a heavily armed and armoured target: melee mobs flee, ranged
 	 * mobs keep their distance. Threat comes from the target's armour points and held weapon, and
 	 * fellow hostiles nearby steady the mob. Off disables the rule entirely.

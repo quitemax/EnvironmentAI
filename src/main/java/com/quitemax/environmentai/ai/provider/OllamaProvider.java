@@ -22,12 +22,14 @@ public class OllamaProvider implements ModelProvider {
 	private final String endpoint;
 	private final String model;
 	private final int timeoutMs;
+	private final Boolean think;
 
 	public OllamaProvider(HttpClient httpClient, ModelTierConfig config) {
 		this.httpClient = httpClient;
 		this.endpoint = config.endpointOverride != null ? config.endpointOverride : DEFAULT_ENDPOINT;
 		this.model = config.model;
 		this.timeoutMs = config.timeoutMs;
+		this.think = config.think;
 	}
 
 	@Override
@@ -42,6 +44,9 @@ public class OllamaProvider implements ModelProvider {
 			body.add("format", request.responseSchema());
 		} else {
 			body.addProperty("format", "json");
+		}
+		if (think != null) {
+			body.addProperty("think", think);
 		}
 		JsonObject options = new JsonObject();
 		options.addProperty("temperature", request.temperature());

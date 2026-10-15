@@ -1,0 +1,6 @@
+{
+  "baseline": { "system1": "llama3.2:3b", "system2": "llama3.2:3b" },
+  "bigger-s2": { "system1": "llama3.2:3b", "system2": "llama3.1:8b" },
+  "qwen": { "system1": "qwen3.5:4b", "system2": "qwen3.5:4b" },
+  "cloud-s2": { "system1": "llama3.2:3b", "system2": "claude-sonnet-5-5" }
+}
