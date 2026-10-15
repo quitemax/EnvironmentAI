@@ -26,9 +26,11 @@ public final class NarrationHud implements HudElement {
 
 	private static final int MAX_QUEUED = 3;
 	private static final long SLIDE_MS = 300;
-	private static final long MIN_HOLD_MS = 3_500;
-	private static final long MAX_HOLD_MS = 9_000;
-	private static final long PER_WORD_MS = 350;
+	/** Long enough to read twice: a caption is a sentence of prose, not a subtitle. */
+	private static final long MIN_HOLD_MS = 6_500;
+	private static final long MAX_HOLD_MS = 16_000;
+	private static final long PER_WORD_MS = 450;
+	private static final long HOLD_BASE_MS = 3_000;
 	private static final int BOX_WIDTH = 220;
 	private static final int PADDING = 6;
 
@@ -59,7 +61,7 @@ public final class NarrationHud implements HudElement {
 			current = queue.removeFirst();
 			shownAtMs = now;
 			int words = current.text().split("\\s+").length;
-			holdMs = Math.max(MIN_HOLD_MS, Math.min(MAX_HOLD_MS, words * PER_WORD_MS + 2_000));
+			holdMs = Math.max(MIN_HOLD_MS, Math.min(MAX_HOLD_MS, words * PER_WORD_MS + HOLD_BASE_MS));
 		}
 		if (current == null) {
 			return;

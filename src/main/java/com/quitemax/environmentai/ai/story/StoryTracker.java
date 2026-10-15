@@ -57,7 +57,27 @@ public final class StoryTracker {
 		long lastNudgeTick = NEVER;
 		long lastRumourTick = NEVER;
 		State state = new State(PlayerStateRules.STEADY, "");
+		/** What the narrator can see of the player, as a prompt paragraph. */
+		String background = "";
+		// Milestones: each remembers the highest step already narrated.
+		int distanceStep;
+		int levelStep;
+		int killStep;
+		int altitudeBand;
+		int bestArmorTier;
+		String weather = "";
+		final Set<String> seenItems = new HashSet<>();
+		final Set<String> seenBiomes = new HashSet<>();
+		String biomeCandidate = "";
+		int biomeStableScans;
+		long lastObservationTick;
+		int observationTopic;
 	}
+
+	/** A calm player is told something small about themselves this often. */
+	private static final long OBSERVATION_INTERVAL_TICKS = 3_600;
+	/** A new biome must hold for this many scans (seconds) before it is remarked on. */
+	private static final int BIOME_STABLE_SCANS = 3;
 
 	private final NarratorService narrator;
 	private final ProactiveVoice voice;
@@ -74,7 +94,7 @@ public final class StoryTracker {
 		ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
 			Log log = logs.get(newPlayer.getUUID());
 			if (log != null && log.initialized) {
-				narrator.narrate(newPlayer, Kind.DEATH, "", "", log.state, true);
+				narrator.narrate(newPlayer, Kind.DEATH, "", "", log.state, true, log.background);
 			}
 		});
 		ServerLivingEntityEvents.AFTER_DAMAGE.register(this::onDamaged);
@@ -98,7 +118,7 @@ public final class StoryTracker {
 		double fraction = player.getHealth() / player.getMaxHealth();
 		if (fraction < 0.25 && fraction > 0.0 && log.nearDeathArmed) {
 			log.nearDeathArmed = false;
-			narrator.narrate(player, Kind.NEAR_DEATH, "", "", log.state, false);
+			narrator.narrate(player, Kind.NEAR_DEATH, "", "", log.state, false, log.background);
 		}
 	}
 
@@ -135,6 +155,9 @@ public final class StoryTracker {
 		boolean overworld = dimension.equals("overworld");
 		boolean night = overworld && Math.floorMod(level.getOverworldClockTime(), 24_000L) >= 13_000L;
 
+		PlayerFacts facts = PlayerFacts.of(player, level);
+		log.background = facts.describe();
+
 		if (!log.initialized) {
 			// First sight of this player this session: take stock silently. Narrating everything
 			// they achieved in earlier sessions would be a flood of captions about the past.
@@ -142,6 +165,14 @@ public final class StoryTracker {
 			log.lastProgressTick = now;
 			log.dimension = dimension;
 			log.wasNight = night;
+			log.distanceStep = Milestones.distanceStep(facts.blocksTravelled());
+			log.levelStep = Milestones.levelStep(facts.level());
+			log.killStep = Milestones.killStep(facts.kills());
+			log.bestArmorTier = facts.bestArmorTier();
+			log.seenItems.addAll(facts.notable().keySet());
+			log.seenBiomes.add(facts.biome());
+			log.biomeCandidate = facts.biome();
+			log.lastObservationTick = now;
 			log.initialized = true;
 		}
 
@@ -153,7 +184,8 @@ public final class StoryTracker {
 		// Dimension change.
 		if (!dimension.equals(log.dimension)) {
 			log.dimension = dimension;
-			narrator.narrate(player, Kind.DIMENSION, dimensionName(dimension), "", log.state, !overworld);
+			narrator.narrate(player, Kind.DIMENSION, dimensionName(dimension), "", log.state, !overworld,
+				log.background);
 		}
 
 		// Derived state.
@@ -172,17 +204,27 @@ public final class StoryTracker {
 
 		// State-driven moments.
 		if (log.state.name().equals(PlayerStateRules.HUNTED) && !log.lastState.equals(PlayerStateRules.HUNTED)) {
-			narrator.narrate(player, Kind.HUNTED, "", "", log.state, false);
+			narrator.narrate(player, Kind.HUNTED, "", "", log.state, false, log.background);
+		}
+		if (log.state.name().equals(PlayerStateRules.HUNGRY) && !log.lastState.equals(PlayerStateRules.HUNGRY)) {
+			narrator.narrate(player, Kind.HUNGER, "", "", log.state, false, log.background);
+		}
+		if (night && !log.wasNight && overworld) {
+			narrator.narrate(player, Kind.NIGHTFALL, "", "", log.state, false, log.background);
 		}
 		// The director: pressure builds and eases, and only at ease may it point anywhere.
 		log.tension.tick(hostiles, night, health, now);
 		if (log.tension.takeRelief(now)) {
-			narrator.narrate(player, Kind.RELIEF, "", "", log.state, false);
+			narrator.narrate(player, Kind.RELIEF, "", "", log.state, false, log.background);
+		}
+		// Things worth remarking on are not said in the middle of a fight; they wait for a lull.
+		if (!log.tension.busy()) {
+			moments(player, log, facts, now);
 		}
 		if (Director.mayNudge(log.tension, now, now - log.lastProgressTick, now - log.lastNudgeTick,
 			ProgressLadder.done(log.completed))) {
 			String hint = ProgressLadder.next(log.completed).map(ProgressLadder.Goal::hint).orElse("");
-			if (narrator.narrate(player, Kind.QUIET, "", hint, log.state, false)) {
+			if (narrator.narrate(player, Kind.QUIET, "", hint, log.state, false, log.background)) {
 				log.lastNudgeTick = now;
 			}
 		}
@@ -201,10 +243,145 @@ public final class StoryTracker {
 			}
 		}
 		if (log.wasNight && !night && overworld && !log.state.name().equals(PlayerStateRules.SHAKEN)) {
-			narrator.narrate(player, Kind.DAWN, "", "", log.state, false);
+			narrator.narrate(player, Kind.DAWN, "", "", log.state, false, log.background);
 		}
 		log.wasNight = night;
 		log.lastState = log.state.name();
+	}
+
+	/**
+	 * The small moments: how far they have come, a level, a new biome, going deep, better gear, a
+	 * storm, a tally, and now and then a quiet remark. Each milestone is only marked done once a
+	 * caption was actually shown, so one held back by a cooldown is simply said a few seconds later.
+	 * At most one is spoken per scan.
+	 */
+	private void moments(ServerPlayer player, Log log, PlayerFacts facts, long now) {
+		int distance = Milestones.distanceStep(facts.blocksTravelled());
+		if (distance > log.distanceStep) {
+			String detail = PlayerFacts.distance(Milestones.distanceAt(distance));
+			if (say(player, log, Kind.JOURNEY, detail)) {
+				log.distanceStep = distance;
+				return;
+			}
+		}
+
+		int level = Milestones.levelStep(facts.level());
+		if (level > log.levelStep) {
+			if (say(player, log, Kind.LEVEL, String.valueOf(Milestones.levelAt(level)))) {
+				log.levelStep = level;
+				return;
+			}
+		}
+
+		// Loadout: a better set of armour, then any item worth a remark seen for the first time.
+		if (facts.piecesWorn() >= 2 && facts.bestArmorTier() > log.bestArmorTier) {
+			if (say(player, log, Kind.LOADOUT, Milestones.tierName(facts.bestArmorTier()) + " armour")) {
+				log.bestArmorTier = facts.bestArmorTier();
+				return;
+			}
+		}
+		for (Map.Entry<String, String> item : facts.notable().entrySet()) {
+			if (!log.seenItems.contains(item.getKey())) {
+				if (say(player, log, Kind.LOADOUT, item.getValue())) {
+					log.seenItems.add(item.getKey());
+					return;
+				}
+				break;
+			}
+		}
+
+		if (facts.overworld()) {
+			int band = Milestones.altitudeBand(facts.y());
+			boolean comingUp = band == 1 && log.altitudeBand == 2;
+			if (band != 0 && band != log.altitudeBand && !comingUp) {
+				if (say(player, log, Kind.DEPTH, facts.altitudeWords())) {
+					log.altitudeBand = band;
+					return;
+				}
+			}
+			if (facts.y() >= Milestones.SURFACE_Y && facts.y() < Milestones.HIGH_Y - 20) {
+				log.altitudeBand = 0;
+			}
+
+			String weather = facts.thundering() ? "a thunderstorm" : facts.raining() ? "rain" : "";
+			if (weather.isEmpty()) {
+				log.weather = "";
+			} else if (!weather.equals(log.weather) && say(player, log, Kind.WEATHER, weather)) {
+				log.weather = weather;
+				return;
+			}
+		}
+
+		int kills = Milestones.killStep(facts.kills());
+		if (kills > log.killStep) {
+			int count = Milestones.killsAt(kills);
+			if (say(player, log, Kind.KILLS, count + (count == 1 ? " creature" : " creatures"))) {
+				log.killStep = kills;
+				return;
+			}
+		}
+
+		// A biome not yet seen this session, once the player has stayed in it for a few seconds.
+		String biome = facts.biome();
+		if (!biome.isEmpty() && facts.overworld()) {
+			if (biome.equals(log.biomeCandidate)) {
+				log.biomeStableScans++;
+			} else {
+				log.biomeCandidate = biome;
+				log.biomeStableScans = 1;
+			}
+			if (log.biomeStableScans >= BIOME_STABLE_SCANS && !log.seenBiomes.contains(biome)) {
+				if (say(player, log, Kind.BIOME, biome)) {
+					log.seenBiomes.add(biome);
+					return;
+				}
+			}
+		}
+
+		if (log.tension.atEase(now) && now - log.lastObservationTick > OBSERVATION_INTERVAL_TICKS) {
+			String remark = observation(facts, log);
+			if (!remark.isEmpty() && say(player, log, Kind.OBSERVATION, remark)) {
+				log.lastObservationTick = now;
+			}
+		}
+	}
+
+	private boolean say(ServerPlayer player, Log log, Kind kind, String detail) {
+		return narrator.narrate(player, kind, detail, "", log.state, false, log.background);
+	}
+
+	/**
+	 * One small true thing about the player, rotating through topics so successive remarks differ.
+	 * Empty if there is nothing to say yet.
+	 */
+	private static String observation(PlayerFacts facts, Log log) {
+		final int topics = 6;
+		for (int i = 0; i < topics; i++) {
+			int topic = (log.observationTopic + i) % topics;
+			String remark = switch (topic) {
+				case 0 -> facts.overworld() && !facts.biome().isEmpty()
+					? "they are in a " + facts.biome() + ", " + facts.altitudeWords() : "";
+				case 1 -> !facts.held().isEmpty() || facts.piecesWorn() > 0
+					? "they are " + (facts.held().isEmpty() ? "empty-handed" : "holding a " + facts.held())
+						+ (facts.piecesWorn() > 0
+							? " and wearing " + Milestones.tierName(facts.bestArmorTier()) + " armour" : "")
+					: "";
+				case 2 -> facts.carried().isEmpty() ? "" : "their pack holds "
+					+ facts.carried().entrySet().stream().limit(3)
+						.map(entry -> entry.getValue() + " " + entry.getKey())
+						.collect(java.util.stream.Collectors.joining(", "));
+				case 3 -> facts.blocksTravelled() >= 100
+					? "they have travelled about " + PlayerFacts.distance(facts.blocksTravelled()) + " in all" : "";
+				case 4 -> facts.kills() > 0 || facts.deaths() > 0
+					? "they have killed " + facts.kills() + " creatures and died " + facts.deaths() + " times" : "";
+				default -> facts.days() > 0 ? "it is day " + (facts.days() + 1) + " of their time here" : "";
+			};
+			if (!remark.isEmpty()) {
+				log.observationTopic = topic + 1;
+				return remark;
+			}
+		}
+		return "";
 	}
 
 	private void pollProgress(MinecraftServer server, ServerPlayer player, Log log, long now) {
@@ -212,7 +389,7 @@ public final class StoryTracker {
 		for (ProgressLadder.Goal goal : ProgressLadder.GOALS) {
 			if (done.contains(goal.advancement()) && log.completed.add(goal.advancement())) {
 				log.lastProgressTick = now;
-				narrator.narrate(player, Kind.STAGE, goal.label(), "", log.state, goal.major());
+				narrator.narrate(player, Kind.STAGE, goal.label(), "", log.state, goal.major(), log.background);
 			}
 		}
 	}
@@ -270,10 +447,18 @@ public final class StoryTracker {
 			case STAGE -> ProgressLadder.next(log.completed).map(ProgressLadder.Goal::label).orElse("something");
 			case DIMENSION -> "the Nether";
 			case ELSEWHERE -> "another traveler fell";
+			case JOURNEY -> "2.5 kilometres";
+			case LEVEL -> "10";
+			case BIOME -> "dark forest";
+			case DEPTH -> "deep underground";
+			case LOADOUT -> "diamonds";
+			case WEATHER -> "a thunderstorm";
+			case KILLS -> "50 creatures";
+			case OBSERVATION -> "their pack holds 7 diamonds, 12 iron ingots";
 			default -> "";
 		};
 		String hint = ProgressLadder.next(log.completed).map(ProgressLadder.Goal::hint).orElse("");
-		narrator.narrateNow(player, kind, detail, hint, log.state);
+		narrator.narrateNow(player, kind, detail, hint, log.state, log.background);
 		return true;
 	}
 }

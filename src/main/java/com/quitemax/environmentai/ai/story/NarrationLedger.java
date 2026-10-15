@@ -24,7 +24,27 @@ public final class NarrationLedger {
 		/** A spike of pressure has passed: the director's "ease off" beat. */
 		RELIEF(300_000),
 		/** A short note to the other players about someone else's big moment. */
-		ELSEWHERE(90_000);
+		ELSEWHERE(90_000),
+		/** A distance milestone: how far the player has come. */
+		JOURNEY(120_000),
+		/** An experience level milestone. */
+		LEVEL(60_000),
+		/** A biome the player has not been in yet this session. */
+		BIOME(90_000),
+		/** Far underground, or high on a mountain. */
+		DEPTH(180_000),
+		/** Better armour, or an item worth remarking on in the pack. */
+		LOADOUT(90_000),
+		/** Rain or a thunderstorm begins over the player. */
+		WEATHER(300_000),
+		/** The sun goes down. */
+		NIGHTFALL(480_000),
+		/** A kill-count milestone. */
+		KILLS(180_000),
+		/** Running low on food. */
+		HUNGER(300_000),
+		/** A quiet remark on something the narrator can see: place, gear, pack, miles, toll. */
+		OBSERVATION(150_000);
 
 		private final long cooldownMs;
 
@@ -38,7 +58,7 @@ public final class NarrationLedger {
 	}
 
 	/** Minimum time between any two captions for the same player. */
-	public static final long PLAYER_GAP_MS = 25_000;
+	public static final long PLAYER_GAP_MS = 15_000;
 
 	private final Map<UUID, Long> lastAny = new HashMap<>();
 	private final Map<UUID, EnumMap<Kind, Long>> lastByKind = new HashMap<>();

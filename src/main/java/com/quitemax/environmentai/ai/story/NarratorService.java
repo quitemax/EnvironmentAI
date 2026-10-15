@@ -50,8 +50,11 @@ public final class NarratorService {
 	 * @param detail what specifically happened ("iron", "the Nether"); may be empty
 	 * @param hint   an oblique nudge toward the next goal, or empty; only used for QUIET captions
 	 * @param major  whether the other players should be told about this
+	 * @param background what the narrator can see of the player (level, place, gear, miles); may be empty
 	 */
-	public boolean narrate(ServerPlayer player, Kind kind, String detail, String hint, State state, boolean major) {
+	public boolean narrate(
+		ServerPlayer player, Kind kind, String detail, String hint, State state, boolean major, String background
+	) {
 		EnvironmentAIConfig config = EnvironmentAI.config();
 		if (config == null || !config.directorIntensity.narrates()) {
 			return false;
@@ -81,14 +84,17 @@ public final class NarratorService {
 			ServerPlayNetworking.send(player, new NarrationPayloads.Caption(hint, "hint"));
 			return true;
 		}
-		request(player, kind, detail, withHint ? hint : "", state, fallback, withHint ? "hint" : "narration");
+		request(player, kind, detail, withHint ? hint : "", state, background, fallback,
+			withHint ? "hint" : "narration");
 		return true;
 	}
 
 	/** Debug: skips the gate so a given kind can be seen on demand. */
-	public void narrateNow(ServerPlayer player, Kind kind, String detail, String hint, State state) {
+	public void narrateNow(
+		ServerPlayer player, Kind kind, String detail, String hint, State state, String background
+	) {
 		ledger.forget(player.getUUID());
-		narrate(player, kind, detail, hint, state, false);
+		narrate(player, kind, detail, hint, state, false, background);
 	}
 
 	// --- others --------------------------------------------------------------------------------
@@ -123,7 +129,8 @@ public final class NarratorService {
 	// --- phrasing ------------------------------------------------------------------------------
 
 	private void request(
-		ServerPlayer player, Kind kind, String detail, String hint, State state, String fallback, String style
+		ServerPlayer player, Kind kind, String detail, String hint, State state, String background,
+		String fallback, String style
 	) {
 		EnvironmentAIConfig config = EnvironmentAI.config();
 		StringBuilder user = new StringBuilder();
@@ -133,6 +140,9 @@ public final class NarratorService {
 			user.append(" (the player ").append(state.reason()).append(')');
 		}
 		user.append('\n');
+		if (!background.isEmpty()) {
+			user.append("What you can see of them: ").append(background).append('\n');
+		}
 		if (!hint.isEmpty()) {
 			user.append("Work this in indirectly, as part of the story and never as an instruction: ")
 				.append(hint).append('\n');
@@ -148,6 +158,8 @@ public final class NarratorService {
 			+ "Never mention game mechanics, menus, advancements, or that this is a game, and never "
 			+ "address the player directly or give an order. If you are given something to work in "
 			+ "indirectly, include one concrete image from it. "
+			+ "You may also be told what you can see of the player (level, place, gear, miles); use at "
+			+ "most one such detail, only if it fits the moment, and never list them. "
 			+ "Respond with strict JSON only: {\"caption\": \"...\"}.";
 
 		JsonObject schema = tier.structuredOutput ? captionSchema() : null;
@@ -225,6 +237,16 @@ public final class NarratorService {
 			case QUIET -> "A long time has passed with nothing of note happening to the player.";
 			case RELIEF -> "A dangerous stretch has just ended and the player is safe again.";
 			case ELSEWHERE -> detail;
+			case JOURNEY -> "The player has now travelled " + detail + " in total.";
+			case LEVEL -> "The player has reached experience level " + detail + ".";
+			case BIOME -> "The player has wandered into a " + detail + " for the first time.";
+			case DEPTH -> "The player is " + detail + ".";
+			case LOADOUT -> "The player now has " + detail + ".";
+			case WEATHER -> "The weather has turned: " + detail + ".";
+			case NIGHTFALL -> "The sun has gone down and night is coming on.";
+			case KILLS -> "The player has now killed " + detail + ".";
+			case HUNGER -> "The player is running low on food and getting hungry.";
+			case OBSERVATION -> "A quiet moment. Remark on one small thing: " + detail;
 		};
 	}
 

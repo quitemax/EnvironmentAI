@@ -199,8 +199,28 @@ respawn hooks.
 | relief after a pressure spike | tension reaches *at ease* after peaking ≥ 60 | 300 s |
 | quiet hint (`QUIET`) | director allows a nudge | 600 s |
 | "elsewhere" note to others | someone else's major moment | 90 s |
+| journey | distance travelled crosses 500, 1k, 2.5k, 5k, 10k, 25k, 50k, 100k blocks | 120 s |
+| level | experience level crosses 5, 10, 15, 20, 30, 40, 50 | 60 s |
+| biome | a biome not yet seen this session, held for 3 s | 90 s |
+| depth | below y=0, below y=-40, or above y=140; re-armed above y=40 | 180 s |
+| loadout | a better armour tier (2+ pieces), or a notable item seen for the first time | 90 s |
+| weather | rain or a thunderstorm begins over open sky | 300 s |
+| nightfall | the sun goes down | 480 s |
+| kills | kill count crosses 1, 10, 25, 50, 100, 250, 500, 1000 | 180 s |
+| hunger | the player becomes hungry | 300 s |
+| observation | a calm player, every 3 minutes: place, gear, pack, miles, tally, or day count (rotating) | 150 s |
 
-Plus a 25 s gap between any two captions to one player. Never during a conversation.
+Plus a 15 s gap between any two captions to one player. Never during a conversation. The milestone
+kinds (journey through observation) are held back while the player is under pressure and are
+marked done only once a caption was actually shown, so one blocked by a cooldown is said moments
+later. At most one is spoken per scan.
+
+**What the narrator can see** (`PlayerFacts`, from the game's own statistics and inventory, never
+the player's name): experience level, biome and height, day or night and weather, the held item,
+armour worn, a short count of key items carried, blocks travelled, creatures killed, deaths and the
+day number. Every caption request carries this as background, with the instruction to use at most
+one detail and never list them. The caption box is shown for roughly 6.5 to 16 seconds, scaled by
+length.
 
 **The director** is a rule on top: pressure (damage ×6, hostiles 3 per second each, ×1.5 at night,
 decay 1 per second) and a slack that grows with the run (9 000, 12 000, then 15 000 ticks). A hint

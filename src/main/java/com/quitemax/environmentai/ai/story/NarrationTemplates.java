@@ -74,6 +74,66 @@ public final class NarrationTemplates {
 			case ELSEWHERE -> noir
 				? new String[] {"Elsewhere, " + detail + ".", "Across town, " + detail + "."}
 				: new String[] {"Elsewhere: " + detail + "."};
+			case JOURNEY -> noir
+				? new String[] {
+					"Miles behind them now. " + cap(detail) + ", and the road never once thanked them.",
+					cap(detail) + " of walking. Some people call that a life.",
+					"They'd covered " + detail + ". The map didn't care how."}
+				: new String[] {"Travelled " + detail + " so far.", cap(detail) + " covered."};
+			case LEVEL -> noir
+				? new String[] {
+					"Level " + detail + ". Experience is just a bruise that stopped hurting.",
+					"They'd learned enough to call it level " + detail + ". The city kept teaching.",
+					"Level " + detail + ", and every one of them paid for."}
+				: new String[] {"Reached level " + detail + ".", "Level " + detail + "."};
+			case BIOME -> noir
+				? new String[] {
+					"A " + detail + ". New ground, same old trouble underfoot.",
+					"The " + detail + " didn't know them. It would learn.",
+					"They'd wandered into a " + detail + ". It looked back."}
+				: new String[] {"Entered a " + detail + ".", "A new place: " + detail + "."};
+			case DEPTH -> noir
+				? new String[] {
+					"Down here the dark had weight. They carried it anyway.",
+					"Far from any sky. The stone kept its own counsel.",
+					"The deep took their light and asked for more."}
+				: new String[] {"Deep underground.", "Far below the surface."};
+			case LOADOUT -> noir
+				? new String[] {
+					"A little " + detail + " in the pack. In this town that made a person dangerous.",
+					"They'd come by " + detail + ". Nobody asked how.",
+					"Now they had " + detail + ". The night would have to adjust."}
+				: new String[] {"Now carrying " + detail + ".", "Picked up " + detail + "."};
+			case WEATHER -> noir
+				? new String[] {
+					"Rain came down like it had somewhere to be.",
+					"The sky opened up and nobody had an umbrella.",
+					"Weather rolled in. It had opinions."}
+				: new String[] {"It started to rain.", "Weather turned."};
+			case NIGHTFALL -> noir
+				? new String[] {
+					"The light went out of the day, and the night came in without knocking.",
+					"Dusk. The kind of dark that takes its time.",
+					"Night fell. So did the last of the easy choices."}
+				: new String[] {"Night is falling.", "Dusk."};
+			case KILLS -> noir
+				? new String[] {
+					"The count stood at " + detail + ". Nobody had asked for a tally.",
+					cap(detail) + " down. The ledger wasn't written in ink.",
+					"Another number on a list no one would read: " + detail + "."}
+				: new String[] {cap(detail) + " defeated.", "Tally: " + detail + "."};
+			case HUNGER -> noir
+				? new String[] {
+					"Their stomach filed a complaint. Nobody was listening.",
+					"Empty belly, long road. An old story.",
+					"Hunger had been patient so far. That was ending."}
+				: new String[] {"They are getting hungry.", "Running low on food."};
+			case OBSERVATION -> noir
+				? new String[] {
+					cap(detail) + ".",
+					"Small things, noticed: " + detail + ".",
+					"Nothing happened. Still, " + detail + "."}
+				: new String[] {cap(detail) + ".", "Observed: " + detail + "."};
 		};
 		String text = options[Math.floorMod(variant, options.length)];
 		return text.length() > MAX_LENGTH ? text.substring(0, MAX_LENGTH - 1).trim() + "..." : text;
